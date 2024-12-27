@@ -5,7 +5,7 @@ with open("README.md", 'r') as rmf:
 
 setup(
     name='kegscraper',
-    version='v0.1.2',
+    version='v0.1.3',
     packages=['kegscraper'],
     url='https://kegs.org.uk/',
     license='unlicense',
