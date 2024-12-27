@@ -7,10 +7,11 @@ setup(
     name='kegscraper',
     version='v0.1.2',
     packages=['kegscraper'],
-    url='https://github.com/BigPotatoPizzaHey/kegscraper/',
+    url='https://kegs.org.uk/',
     license='unlicense',
     author='BigPotatoPizzaHey',
     author_email="poo@gmail.com",
     description="The ultimate KEGS webscraping module",
-    long_description=longdesc
+    long_description=longdesc,
+    long_description_content_type="text/markdown"
 )
