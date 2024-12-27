@@ -1,3 +1,7 @@
+"""
+Get news page & load news category functions & related dataclasses
+"""
+
 from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
@@ -13,12 +17,18 @@ from ..util import commons, exceptions
 
 @dataclass(init=True, repr=True)
 class Category:
+    """
+    A dataclass representing a category of a news item on kegsIT
+    """
     id: int
     name: str
 
 
 @dataclass(init=True, repr=True)
 class NewsItem:
+    """
+    A news 'article'/post on the kegsIT website
+    """
     id: int
 
     author: str = None
@@ -103,10 +113,17 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
         category_obj
     )
 
-def load_news_category(category: int | Category = 7, *, limit: int=10, offset: int=0):
+def load_news_category(category: int | Category = 7, *, limit: int=10, offset: int=0) -> list[NewsItem]:
+    """
+    Make mutliple requests to kegsIT to load an entire category of news data with a given offset and limit
+    :param category: Category of news data to scrape. Defaults to the 'news' category
+    :param limit: # of Posts to scrape
+    :param offset: Starting post index
+    :return: A list of posts aka news items
+    """
     pages = []
     for page, _ in zip(*commons.generate_page_range(limit, offset, 1, 1)):
-        print(page)
+        # print(page)
         try:
             pages.append(get_news_page(page, category))
 

@@ -1,3 +1,7 @@
+"""
+Session class and login function. (most bromcom functionality)
+"""
+
 from __future__ import annotations
 
 from base64 import b64decode
@@ -29,26 +33,33 @@ class Session:
     def __repr__(self):
         return f"Session for {self.name}"
 
-    def logout(self):
+    def logout(self) -> requests.Response:
+        """
+        Send a logout request to bromcom. After this is called, the session will no longer function.
+        :return: The response from bromcom
+        """
         resp = self._sess.get("https://www.bromcomvle.com/Auth/Logout")
-        print(f"Automatically logged out with status code: {resp.status_code}")
+        print(f"Logged out with status code: {resp.status_code}")
         self._sess = None
 
         return resp
 
     # --- Account settings ---
-    def set_color_preference(self, *, name: str="Theme", value: str="default"):
+    def set_color_preference(self, *, name: str = "Theme", value: str = "default"):
         """
-        Set a color preference. Might not work yet
+        Set a color preference request to bromcom. Might not work yet
         """
         return self._sess.post("https://www.bromcomvle.com/AccountSettings/SaveColorPreference",
-                        json={
-                            "Name": name,
-                            "Value": value
-                        })
+                               json={
+                                   "Name": name,
+                                   "Value": value
+                               })
 
     @property
     def email(self):
+        """
+        Fetch the user email from the account settings page
+        """
         text = self._sess.get("https://www.bromcomvle.com/AccountSettings").text
         soup = BeautifulSoup(text, "html.parser")
 
@@ -62,6 +73,9 @@ class Session:
 
     @property
     def school_contact_details(self) -> dict:
+        """
+        Fetch the school contact details as a key:value table from the hidden drop-down menu
+        """
         text = self._sess.get("https://www.bromcomvle.com/Home/Dashboard").text
         soup = BeautifulSoup(text, "html.parser")
 
@@ -88,13 +102,11 @@ class Session:
 
         return data
 
-
-
-
-
-
     @property
     def name(self):
+        """
+        Fetch the student name (not username) from the deshboard page
+        """
         if self._name is None:
             text = self._sess.get("https://www.bromcomvle.com/Home/Dashboard").text
             soup = BeautifulSoup(text, "html.parser", parse_only=SoupStrainer("span"))
@@ -108,25 +120,44 @@ class Session:
         return self._name
 
     @property
-    def pfp(self):
+    def pfp(self) -> bytes:
+        """
+        Fetch the user's corresponding profile picture as bytes
+        """
         return self._sess.get("https://www.bromcomvle.com/AccountSettings/GetPersonPhoto").content
 
     @property
-    def school_photo(self):
+    def school_photo(self) -> bytes:
+        """
+        Fetch the school's corresponding photo as bytes
+        """
         return self._sess.get("https://www.bromcomvle.com/AccountSettings/GetSchoolPhoto").content
 
     @property
     def pfp_ext(self):
+        """
+        Fetch the image format of the profile picture
+        """
         response = self._sess.get("https://www.bromcomvle.com/AccountSettings/GetPersonPhoto")
         return mimetypes.guess_extension(response.headers.get("Content-Type", "image/Jpeg"))
 
     @property
     def school_photo_ext(self):
+        """
+        Fetch the image format of the school picture
+        """
         response = self._sess.get("https://www.bromcomvle.com/AccountSettings/GetSchoolPhoto")
         return mimetypes.guess_extension(response.headers.get("Content-Type", "image/Jpeg"))
 
     # --- Timetable methods ---
-    def get_timetable(self, start_date: datetime | WeekDate = None, end_date: datetime | WeekDate = None):
+    def get_timetable(self, start_date: datetime | WeekDate = None, end_date: datetime | WeekDate = None) -> list[
+        Lesson]:
+        """
+        Fetch the user's timetable starting at a corresponding week and ending on another
+        :param start_date: The start date given to bromcom. Can be a datetime or a WeekDate object. Defaults to the latest valid week.
+        :param end_date: The end date fiven to bromcom. Defaults to a week ahead of the start date.
+        :return: A list of lesson objects, each with a period #, subject name, class name, room name etc.
+        """
         if isinstance(start_date, WeekDate):
             start_date = start_date.date
         if isinstance(end_date, WeekDate):
@@ -166,7 +197,11 @@ class Session:
         return lessons
 
     @property
-    def timetable_weeks(self):
+    def timetable_weeks(self) -> list[WeekDate]:
+        """
+        Fetch a list of valid weeks in the user's timetable
+        :return: A list of WeekDate objects, representing the start of each week, also containing a term and week index.
+        """
         if self._timetable_weeks is None:
             self._timetable_weeks = []
 
@@ -203,6 +238,14 @@ class Session:
     # --- Attendance methods ---
     @property
     def present_late_ratio(self) -> dict[str, int]:
+        """
+        Webscrape JSON inside JS inside HTML to get the present, late and other attendance type counts. i.e.:
+        Returns a dictionary e.g.: {
+        "present": 176,
+        "late": 21
+        }
+        :return: A dictionary of attendance statuses and their counts
+        """
         # Parse JSON inside of JS inside of HTML. Yeah....
         text = self._sess.get("https://www.bromcomvle.com/Attendance").text
         soup = BeautifulSoup(text, "html.parser")
@@ -231,7 +274,7 @@ class Session:
     @property
     def attendance_status(self):
         """
-        Get the Status for the current data
+        Get the Status for the current day. (Uses the widget api)
         """
         return self._sess.get("https://www.bromcomvle.com/Home/GetAttendanceWidgetData").json()
 
@@ -239,10 +282,19 @@ class Session:
 
     @property
     def reports_data(self) -> dict[str, list[dict[str, str]]]:
+        """
+        Fetch the report list (needs to be parsed)
+        :return: A list of dictionaries representing reports. The filePath attribute can be used in the get_report method to fetch the report pdf as bytes
+        """
         # Parse this later
         return self._sess.get("https://www.bromcomvle.com/Home/GetReportsWidgetData").json()
 
     def get_report(self, filepath: str) -> bytes:
+        """
+        Get the report with the given 'filepath' as bytes
+        :param filepath: The filePath attribute in the report data
+        :return: The report data as bytes
+        """
         # Get the data encoded in b64 encoded in JSON. Weird.
         data = self._sess.get("https://www.bromcomvle.com/Report/GetReport",
                               params={
@@ -255,21 +307,42 @@ class Session:
 
     @property
     def exam_data(self) -> list[dict[str, str]]:
+        """
+        Fetch the exam data from the widget api
+        :return:
+        """
         # Parse this
         return self._sess.get("https://www.bromcomvle.com/Home/GetExamResultsWidgetData").json()
 
     # --- Bookmarks data ---
     @property
     def bookmarks_data(self) -> list[dict]:
+        """
+        Get the bookmarks list as a list of dictionaries (needs to be parsed)
+        :return: list of dictionaries, each is a bookmark
+        """
         # Parse this
         return self._sess.get("https://www.bromcomvle.com/Home/GetBookmarksWidgetData").json()
 
     # --- Homework data ---
     @property
     def homework_data(self) -> list:
+        """
+        Fetch homework data using the widget api. I have no homework so I am unable to parse this
+        :return: A list of something
+        """
         return self._sess.get("https://www.bromcomvle.com/Home/GetHomeworkWidgetData").json()
 
+
 def login(school_id: int, username: str, password: str, remember_me: bool = True) -> Session:
+    """
+    Login to bromcom with a school id, username and password.
+    :param school_id: KEGS school id (you provide it)
+    :param username: Your username
+    :param password: Your password
+    :param remember_me: Option to 'remember me.' Defaults to True
+    :return: A session representing your login
+    """
     _sess = requests.Session()
     _sess.headers = commons.headers.copy()
 

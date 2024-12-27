@@ -1,3 +1,7 @@
+"""
+Utility functions/variables used commonly across the module
+"""
+
 import json
 import string
 from datetime import datetime
@@ -90,12 +94,12 @@ def _read_json_number(string: str) -> float | int:
     return json.loads(ret)
 
 
-def consume_json(string: str, i: int = 0) -> str | float | int | dict | list | bool | None:
+def consume_json(_string: str, i: int = 0) -> str | float | int | dict | list | bool | None:
     """
     Reads a JSON string and stops at the natural end (i.e. when brackets close, or when quotes end, etc.)
     """
     # Named by ChatGPT
-    section = ''.join(string[i:])
+    section = ''.join(_string[i:])
     if section.startswith("true"):
         return True
     elif section.startswith("false"):

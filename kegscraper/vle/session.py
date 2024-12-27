@@ -1,3 +1,6 @@
+"""
+Session class and login/login by moodle function
+"""
 from __future__ import annotations
 
 import requests
@@ -9,6 +12,10 @@ from ..util import commons
 
 
 class Session:
+    """
+    Represents a login session
+    """
+
     def __init__(self, _sess: requests.Session):
         self.rq: requests.Session = _sess
         """Request handler (requests session object)"""
@@ -16,7 +23,7 @@ class Session:
         self._sesskey: str | None = None
         self._file_client_id: str | None = None
         self._file_item_id: str | None = None
-        self._user_id: int | None = None
+        self._user_id: int = 0
         self._user: user.User | None = None
 
         self.assert_login()
@@ -24,7 +31,7 @@ class Session:
     # --- Session/auth related methods ---
     @property
     def sesskey(self):
-        """Get the sesskey query parameter used in various functions"""
+        """Get the sesskey query parameter used in various functions. Webscraped from JS..."""
         if self._sesskey is None:
             pfx = "var M = {}; M.yui = {};\nM.pageloadstarttime = new Date();\nM.cfg = "
 
@@ -47,6 +54,7 @@ class Session:
 
     @property
     def file_client_id(self):
+        """Get the client id value used for file management"""
         if self._file_client_id is None:
             response = self.rq.get("https://vle.kegs.org.uk/user/files.php")
             soup = BeautifulSoup(response.text, "html.parser")
@@ -58,6 +66,7 @@ class Session:
 
     @property
     def connected_user(self) -> user.User:
+        """Fetch the connected user to this session"""
         if not self._user:
             self._user = self.connect_user(self.user_id)
 
@@ -65,6 +74,7 @@ class Session:
 
     @property
     def file_item_id(self):
+        """Fetch the item id value used for file management"""
         if self._file_item_id is None:
             response = self.rq.get("https://vle.kegs.org.uk/user/files.php")
             soup = BeautifulSoup(response.text, "html.parser")
@@ -74,6 +84,7 @@ class Session:
 
     @property
     def username(self):
+        """Fetch the connected user's username"""
         response = self.rq.get("https://vle.kegs.org.uk/login/index.php")
         soup = BeautifulSoup(response.text, "html.parser")
         for alert_elem in soup.find_all(attrs={"role": "alert"}):
@@ -87,6 +98,7 @@ class Session:
 
     @property
     def user_id(self):
+        """Fetch the connected user's user id"""
         if self._user_id is None:
             response = self.rq.get("https://vle.kegs.org.uk/")
             soup = BeautifulSoup(response.text, "html.parser")
@@ -100,33 +112,39 @@ class Session:
         return self._user_id
 
     def assert_login(self):
+        """Raise an error if there is no connected user"""
         assert self.username
 
     # --- Connecting ---
     def connect_user(self, _id: int) -> user.User:
+        """Get a user by ID and attach this session object to it"""
         ret = user.User(_id, _session=self)
         ret.update_from_id()
         return ret
 
     def connect_forum(self, _id: int) -> forum.Forum:
+        """Get a forum by ID and attach this session object to it"""
         ret = forum.Forum(_id, _session=self)
         ret.update_by_id()
         return ret
 
     # --- Private Files ---
     def _file_data(self, fp: str) -> dict:
+        """Fetch the JSON response for private files in a given directory"""
+
         # Believe or not, KegsNet does actually have some JSON endpoints!
         return self.rq.post("https://vle.kegs.org.uk/repository/draftfiles_ajax.php",
                             params={"action": "list"},
                             data={
-                                     "sesskey": self.sesskey,
+                                "sesskey": self.sesskey,
 
-                                     "clientid": self.file_client_id,
-                                     "itemid": self.file_item_id,
-                                     "filepath": fp
-                                 }).json()
+                                "clientid": self.file_client_id,
+                                "itemid": self.file_item_id,
+                                "filepath": fp
+                            }).json()
 
-    def files_in_dir(self, fp: str):
+    def files_in_dir(self, fp: str) -> list[file.File]:
+        """Fetch files in a given directory"""
         data = self._file_data(fp)["list"]
         files = []
         for file_data in data:
@@ -135,59 +153,81 @@ class Session:
 
     @property
     def files(self):
+        """Fetch the files in the root directory"""
         return self.files_in_dir('/')
 
-    def add_file(self, title: str, data: bytes, author: str = '', _license: str = "unknown", fp: str = '/'):
+    def add_file(self, title: str, data: bytes, author: str = '', _license: str = "unknown", fp: str = '/',
+                 save_changes: bool = True):
+        """
+        Make a POST request to add a new file to the given filepath
+        :param title: file title
+        :param data: file content (bytes)
+        :param author: Author metadata. Defaults to ''
+        :param _license: Given license. Defaults to 'unknown'
+        :param fp: Directory path to add the file. Defaults to the root directory
+        :param save_changes: Whether to save the change. Defaults to True
+        """
         # Perhaps this method should take in a File object instead of title/data/author etc
 
         self.rq.post("https://vle.kegs.org.uk/repository/repository_ajax.php",
                      params={"action": "upload"},
                      data={
-                              "sesskey": self.sesskey,
-                              "repo_id": 3,  # I'm not sure if it has to be 3
+                         "sesskey": self.sesskey,
+                         "repo_id": 3,  # I'm not sure if it has to be 3
 
-                              "title": title,
-                              "author": author,
-                              "license": _license,
+                         "title": title,
+                         "author": author,
+                         "license": _license,
 
-                              "clientid": self.file_client_id,
-                              "itemid": self.file_item_id,
-                              "savepath": fp
-                          },
+                         "clientid": self.file_client_id,
+                         "itemid": self.file_item_id,
+                         "savepath": fp
+                     },
                      files={"repo_upload_file": data})
 
         # Save changes
-        self.file_save_changes()
+        if save_changes:
+            self.file_save_changes()
 
     def file_save_changes(self):
+        """
+        Tell kegsnet to save our changes to our files
+        """
         self.rq.post("https://vle.kegs.org.uk/user/files.php",
                      data={"returnurl": "https://vle.kegs.org.uk/user/files.php",
 
-                                "sesskey": self.sesskey,
-                                "files_filemanager": self.file_item_id,
-                                "_qf__user_files_form": 1,
-                                "submitbutton": "Save changes"})
+                           "sesskey": self.sesskey,
+                           "files_filemanager": self.file_item_id,
+                           "_qf__user_files_form": 1,
+                           "submitbutton": "Save changes"})
 
     @property
-    def file_zip(self):
+    def file_zip(self) -> bytes:
         """
         Returns bytes of your files as a zip archive
         """
         url = self.rq.post("https://vle.kegs.org.uk/repository/draftfiles_ajax.php",
                            params={"action": "downloaddir"},
                            data={
-                                    "sesskey": self.sesskey,
-                                    "client_id": self.file_client_id,
-                                    "filepath": '/',
-                                    "itemid": self.file_item_id
-                                }).json()["fileurl"]
+                               "sesskey": self.sesskey,
+                               "client_id": self.file_client_id,
+                               "filepath": '/',
+                               "itemid": self.file_item_id
+                           }).json()["fileurl"]
 
         return self.rq.get(url).content
 
 
 # --- * ---
 
-def login(username: str, password: str):
+def login(username: str, password: str) -> Session:
+    """
+    Login to kegsnet with a username and password
+    :param username: Your username. Same as your email without '@kegs.org.uk'
+    :param password: Your email password
+    :return: a new session
+    """
+
     session = requests.Session()
     session.headers = commons.headers.copy()
 
@@ -206,7 +246,12 @@ def login(username: str, password: str):
     return Session(session)
 
 
-def login_by_moodle(moodle_cookie: str):
+def login_by_moodle(moodle_cookie: str) -> Session:
+    """
+    Login to kegsnet with just a moodle cookie (basically a session id)
+    :param moodle_cookie: The MoodleSession cookie (see in the application/storage tab of your browser devtools when you log in)
+    :return: A new session
+    """
     session = requests.Session()
     session.cookies.set("MoodleSession", moodle_cookie)
 

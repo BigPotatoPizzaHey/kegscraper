@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 
 
 def api_fetch(url: str):
+    """Make an api call to the oliver library api."""
+
     url = f"https://kegs.oliverasp.co.uk/library/home/api/{url}"
     # For some reason it seems that it provides us with some query params then redirects us
     text = requests.get(url).text

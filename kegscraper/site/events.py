@@ -11,6 +11,9 @@ from ..util import commons
 
 @dataclass
 class ATCEvent:
+    """
+    Represents a calendar event managed by the atc api
+    """
     start: datetime
     end: datetime
 
@@ -26,6 +29,7 @@ class ATCEvent:
 
     @classmethod
     def from_data(cls, data: dict[str, str]):
+        """Load an event from a dictionary of data from the atc api"""
         return cls(
             dateparser.parse(data.get("atc_date_start")),
             dateparser.parse(data.get("atc_date_end")),
@@ -43,6 +47,9 @@ class ATCEvent:
 
 @dataclass
 class CalendarEvent:
+    """
+    Represents a calendar event stored on the kegs main website
+    """
     id: int
 
     code_name: str = '_'  # Used for fetching url, but doesn't actually matter
@@ -50,11 +57,13 @@ class CalendarEvent:
     _event_data: ATCEvent = field(repr=False, default=None)
 
     @property
-    def url(self):
+    def url(self) -> str:
+        """Get a link to the calendar event. This will time out at some point"""
         return f"https://kegs.org.uk/{self.code_name}/{self.id}.html"
 
     @property
-    def event_data(self):
+    def event_data(self) -> ATCEvent:
+        """Get the actual data for the calendar event, and return as an ATCEvent object"""
         if self._event_data is None:
             text = requests.get(self.url).text
             soup = BeautifulSoup(text, "html.parser")
@@ -72,10 +81,19 @@ class CalendarEvent:
 
 
 def get_events_pdf() -> bytes:
+    """
+    Fetch the KEGS event list pdf as bytes
+    """
     return requests.get("https://www.kegs.org.uk/eventsPDF.cfm").content
 
 
-def get_calendar_page(date: datetime | str = None, by: str = "MONTH"):
+def get_calendar_page(date: datetime | str = None, by: str = "MONTH") -> list[CalendarEvent]:
+    """
+    Fetch the list of calendar events corresponding the page on the calendar
+    :param date: Date to fetch data around
+    :param by: Event fetching mode: either 'WEEK' or 'MONTH'
+    :return: A list of CalendarEvent objects
+    """
     if date is None:
         date = datetime.today()
 

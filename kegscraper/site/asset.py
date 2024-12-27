@@ -11,6 +11,10 @@ from ..util import commons, exceptions
 
 @dataclass(init=True, repr=True)
 class Asset:
+    """
+    Represents an asset that can be downloaded with the 'force_download.cfm' endpoint
+    """
+
     id: int=None
     content: bytes = field(repr=False, default=None)
     name: str = None
@@ -19,10 +23,19 @@ class Asset:
 
     @property
     def ext(self):
+        """
+        Guess the file extension of this asset
+        """
         return mimetypes.guess_extension(self.mime)
 
 
-def download_asset_by_id(_id: int):
+def download_asset_by_id(_id: int) -> Asset:
+    """
+    Fetch an asset by id from the force_download.cfm endpoint, using headers to provide metadata
+    :param _id: id of asset to fetch
+    :return: The corresponding Asset object
+    """
+
     url = "https://www.kegs.org.uk/force_download.cfm"
     response = requests.get(url,
                             params={"id": _id})
@@ -39,6 +52,11 @@ def download_asset_by_id(_id: int):
                  dateparser.parse(response.headers.get("Last-Modified", '')))
 
 def find_asset_ids(url: str) -> list[int]:
+    """
+    Scrape any asset ids by looking for force_download.cfm links
+    :param url: url of page to scrape
+    :return: list of ids
+    """
     ids = []
 
     global_netloc = urlparse(url).netloc

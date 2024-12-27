@@ -19,6 +19,11 @@ re_mnth = '|'.join(map(str.upper, MONTHS))
 
 
 def read(pdf_data: bytes) -> list[ATCEvent]:
+    """
+    Parse a KEGS Events pdf into a list of events. Does not validate the pdf.
+    :param pdf_data: The pdf as bytes
+    :return: a list of events
+    """
     pdf = PdfReader(BytesIO(pdf_data))
     text = ''
     for page in pdf.pages:

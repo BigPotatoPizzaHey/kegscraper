@@ -9,12 +9,18 @@ from dataclasses import dataclass
 
 @dataclass(init=True, repr=True)
 class WeekDate:
+    """
+    A dataclass representing a start of a week to be used with the bromcom timetable.
+    """
     term_i: int
     week_i: int
     date: datetime
 
 @dataclass(init=True, repr=True)
 class Lesson:
+    """
+    A dataclass representing a lesson in the bromcom timetable
+    """
     period: int
     subject: str
     class_name: str

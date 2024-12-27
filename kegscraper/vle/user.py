@@ -38,8 +38,15 @@ class User:
     _session: session.Session = field(repr=False, default=None)
 
     @property
-    def has_default_image(self) -> bool:
+    def has_default_image(self) -> bool | None:
+        if self.image_url is None:
+            return None
+
         return self.image_url == "https://vle.kegs.org.uk/theme/image.php/trema/core/1585328846/u/f1"
+
+    @property
+    def profile_image(self) -> bytes:
+        return self._session.rq.get(self.image_url).content
 
     def update_from_id(self):
         response = self._session.rq.get("https://vle.kegs.org.uk/user/profile.php",

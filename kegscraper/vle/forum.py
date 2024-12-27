@@ -1,3 +1,4 @@
+"""Post, Discussion and Forum classes"""
 from __future__ import annotations
 
 from urllib.parse import urlparse, parse_qs
@@ -12,6 +13,8 @@ from . import session, user
 
 @dataclass(init=True, repr=True)
 class Post:
+    """Represents a post in a discussion in a forum on the kegsnet website"""
+
     id: int = None
     """Actually the integer in the url fragment that links to this post, which is attached to the discussion link"""
     creator: user.User = None
@@ -55,6 +58,7 @@ class Post:
 
 @dataclass(init=True, repr=True)
 class Discussion:
+    """Represents a discussion within a forum on the kegsnet website"""
     id: int = None
 
     name: str = None
@@ -70,7 +74,11 @@ class Discussion:
 
     posts: list[Post] = field(repr=False, default_factory=lambda: [])
 
-    def update_from_forum_html(self, elem: PageElement):
+    def update_from_forum_html(self, elem: PageElement) -> None:
+        """
+        Update the discussion from HTML on a forum's page
+        :param elem: the HTML data as a bs4.PageElement object
+        """
         for i, item in enumerate(elem.find_all("td")):
             if i == 0:
                 # Star this discussion
@@ -107,6 +115,10 @@ class Discussion:
                 break
 
     def update(self):
+        """
+        Update the discussion from the corresponding url. Requires an id
+        :return:
+        """
         response = self._session.rq.get("https://vle.kegs.org.uk/mod/forum/discuss.php",
                                         params={
                                     "d": self.id,
@@ -130,11 +142,15 @@ class Discussion:
             self.posts[-1].update_from_html(post_html)
 
     @property
-    def url(self):
+    def url(self) -> str:
+        """Get the url of this discussion"""
         return f"https://vle.kegs.org.uk/mod/forum/discuss.php?d={self.id}"
 
     @property
     def top_post(self) -> Post:
+        """
+        Fetch the first post in a discussion
+        """
         if not self._top_post:
             self.update()
 
@@ -143,6 +159,7 @@ class Discussion:
 
 @dataclass(init=True, repr=True)
 class Forum:
+    """Represents a forum on KEGSNET - e.g. the news forum"""
     id: int
 
     name: str = None
@@ -152,6 +169,7 @@ class Forum:
     _session: session.Session = field(repr=False, default=None)
 
     def update_by_id(self):
+        """Update attributes by requesting the corresponding webpage. Requires an id"""
         response = self._session.rq.get("https://vle.kegs.org.uk/mod/forum/view.php",
                                         params={"f": self.id})
         soup = BeautifulSoup(response.text, "html.parser")

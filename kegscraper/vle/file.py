@@ -1,3 +1,6 @@
+"""
+File class
+"""
 from __future__ import annotations
 
 import os.path
@@ -11,7 +14,7 @@ from . import session
 @dataclass(init=True)
 class File:
     """
-    Class representing both files and directories
+    Class representing both files and directories in kegsnet
     """
     filename: str
     filepath: str
@@ -64,6 +67,7 @@ class File:
 
     @staticmethod
     def from_json(data: dict, _session: session.Session = None) -> File:
+        """Load a file from JSON data"""
         _fn = data.get("filename")
         _fp = data.get("filepath")
 
@@ -87,4 +91,5 @@ class File:
 
     @property
     def is_dir(self):
+        """Check if the file is actually a directory"""
         return self.type == "folder"
