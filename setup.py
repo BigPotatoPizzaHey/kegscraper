@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='kegscraper',
-    version='v0.0.3',
+    version='v0.1.0',
     packages=['kegscraper'],
     url='https://github.com/BigPotatoPizzaHey/kegscraper/',
     license='',
