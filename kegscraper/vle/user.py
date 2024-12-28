@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import requests
 import dateparser
 from bs4 import BeautifulSoup
 from typing import Final

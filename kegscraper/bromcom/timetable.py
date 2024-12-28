@@ -7,7 +7,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class WeekDate:
     """
     A dataclass representing a start of a week to be used with the bromcom timetable.
@@ -16,7 +16,7 @@ class WeekDate:
     week_i: int
     date: datetime
 
-@dataclass(init=True, repr=True)
+@dataclass
 class Lesson:
     """
     A dataclass representing a lesson in the bromcom timetable

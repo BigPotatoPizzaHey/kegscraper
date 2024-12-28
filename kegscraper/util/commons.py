@@ -39,13 +39,13 @@ def webscrape_section(raw: str, before: str | int = '', after: str | int = '', c
     return cls(section)
 
 
-def _read_json_number(string: str) -> float | int:
+def _read_json_number(_string: str) -> float | int:
     ret = ''
 
-    minus = string[0] == '-'
+    minus = _string[0] == '-'
     if minus:
         ret += '-'
-        string = string[1:]
+        _string = _string[1:]
 
     def read_fraction(sub: str):
         sub_ret = ''
@@ -77,19 +77,19 @@ def _read_json_number(string: str) -> float | int:
 
         return sub_ret
 
-    if string[0] == '0':
+    if _string[0] == '0':
         ret += '0'
-        string = string[1:]
+        _string = _string[1:]
 
-    elif string[0] in DIGITS[1:9]:
-        while string[0] in DIGITS:
-            ret += string[0]
-            string = string[1:]
+    elif _string[0] in DIGITS[1:9]:
+        while _string[0] in DIGITS:
+            ret += _string[0]
+            _string = _string[1:]
 
-    frac, string = read_fraction(string)
+    frac, _string = read_fraction(_string)
     ret += frac
 
-    ret += read_exponent(string)
+    ret += read_exponent(_string)
 
     return json.loads(ret)
 
