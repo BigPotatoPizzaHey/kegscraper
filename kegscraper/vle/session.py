@@ -3,11 +3,13 @@ Session class and login/login by moodle function
 """
 from __future__ import annotations
 
+import re
+
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 
-from . import file, user, forum
+from . import file, user, forum, blog
 from ..util import commons
 
 
@@ -23,7 +25,7 @@ class Session:
         self._sesskey: str | None = None
         self._file_client_id: str | None = None
         self._file_item_id: str | None = None
-        self._user_id: int = 0
+        self._user_id: int | None = None
         self._user: user.User | None = None
 
         self.assert_login()
@@ -217,6 +219,24 @@ class Session:
 
         return self.rq.get(url).content
 
+    # --- Blogs ---
+    @property
+    def blog_entries(self) -> list[blog.Entry]:
+        text = self.rq.get("https://vle.kegs.org.uk/blog/index.php",
+                           params={
+                               "userid": self.user_id
+                           }).text
+        soup = BeautifulSoup(text, "html.parser")
+
+        entries = []
+        for div in soup.find("div", {"role": "main"}).find_all("div"):
+            raw_id = div.attrs.get("id", '')
+
+            if re.match(r"b\d*", raw_id):
+                entries.append(blog.Entry(_session=self))
+                entries[-1].update_from_div(div)
+
+        return entries
 
 # --- * ---
 
