@@ -54,6 +54,27 @@ class Session:
 
         return self._sesskey
 
+    def connect_notifications(self, *, limit: int = 20, offset: int = 0, user_id: int = None) -> tuple[list, int]:
+        if user_id is None:
+            user_id = self.user_id
+
+        data: dict = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+                                  params={
+                                      "sesskey": self.sesskey,
+                                      "info": "message_popup_get_popup_notifications"
+                                  },
+                                  json=[{"index": 0,  # idk what this is for
+                                         "methodname": "message_popup_get_popup_notifications",
+                                         "args": {
+                                             "limit": limit,
+                                             "offset": offset,
+                                             "useridto": str(user_id)}
+                                         }]
+                                  ).json()["data"]
+
+
+        return data["notifications"], data["unreadcount"]
+
     @property
     def file_client_id(self):
         """Get the client id value used for file management"""
@@ -123,6 +144,12 @@ class Session:
         ret = user.User(_id, _session=self)
         ret.update_from_id()
         return ret
+
+    def connect_partial_user(self, **kwargs):
+        """
+        Connect to a user with given kwargs without any updating
+        """
+        return user.User(_session=self, **kwargs)
 
     def connect_forum(self, _id: int) -> forum.Forum:
         """Get a forum by ID and attach this session object to it"""
@@ -220,14 +247,7 @@ class Session:
         return self.rq.get(url).content
 
     # --- Blogs ---
-    @property
-    def blog_entries(self) -> list[blog.Entry]:
-        text = self.rq.get("https://vle.kegs.org.uk/blog/index.php",
-                           params={
-                               "userid": self.user_id
-                           }).text
-        soup = BeautifulSoup(text, "html.parser")
-
+    def _find_blog_entires(self, soup: BeautifulSoup) -> list[blog.Entry]:
         entries = []
         for div in soup.find("div", {"role": "main"}).find_all("div"):
             raw_id = div.attrs.get("id", '')
@@ -237,6 +257,40 @@ class Session:
                 entries[-1].update_from_div(div)
 
         return entries
+
+    def connect_user_blog_entries(self, userid: int = None, *, limit: int = 10, offset: int = 0) -> list[blog.Entry]:
+        if userid is None:
+            userid = self.user_id
+
+        entries = []
+        for page, _ in zip(*commons.generate_page_range(limit, offset, 10, 0)):
+            text = self.rq.get("https://vle.kegs.org.uk/blog/index.php",
+                               params={
+                                   "blogpage": page,
+                                   "userid": userid
+                               }).text
+            soup = BeautifulSoup(text, "html.parser")
+            entries += self._find_blog_entires(soup)
+
+        return entries
+
+    def connect_site_blog_entries(self, *, limit: int = 10, offset: int = 0) -> list[blog.Entry]:
+        entries = []
+        for page, _ in zip(*commons.generate_page_range(limit, offset, 10, 0)):
+            text = self.rq.get("https://vle.kegs.org.uk/blog/index.php",
+                               params={
+                                   "blogpage": page
+                               }).text
+            soup = BeautifulSoup(text, "html.parser")
+            entries += self._find_blog_entires(soup)
+
+        return entries
+
+    def connect_blog_entry_by_id(self, _id: int):
+        entry = blog.Entry(id=_id, _session=self)
+        entry.update_from_id()
+        return entry
+
 
 # --- * ---
 

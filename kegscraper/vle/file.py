@@ -56,13 +56,13 @@ class File:
         self._session.rq.post("https://vle.kegs.org.uk/repository/draftfiles_ajax.php",
                               params={"action": "delete"},
                               data={
-                          "sesskey": self._session.sesskey,
+                                  "sesskey": self._session.sesskey,
 
-                          "clientid": self._session.file_client_id,
-                          "itemid": self._session.file_item_id,
-                          "filename": self.filename,
-                          "filepath": self.filepath
-                      })
+                                  "clientid": self._session.file_client_id,
+                                  "itemid": self._session.file_item_id,
+                                  "filename": self.filename,
+                                  "filepath": self.filepath
+                              })
         self._session.file_save_changes()
 
     @staticmethod

@@ -200,3 +200,11 @@ def keep_chrs(_string: str, chars=string.digits, cls: type = str):
     return cls(''.join(filter(
         lambda c: c in chars, _string
     )))
+
+def slice_to_range(slc: slice) -> range:
+    args = []
+    for arg in (slc.start, slc.stop, slc.step):
+        if arg is not None:
+            args.append(arg)
+
+    return range(*args)
