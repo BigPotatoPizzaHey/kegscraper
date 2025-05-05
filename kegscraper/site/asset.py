@@ -4,6 +4,8 @@ from datetime import datetime
 import dateparser
 import mimetypes
 
+from typing_extensions import deprecated
+
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup, SoupStrainer
 
@@ -28,7 +30,7 @@ class Asset:
         """
         return mimetypes.guess_extension(self.mime)
 
-
+@deprecated("Downloading assets by ID has been patched")
 def download_asset_by_id(_id: int) -> Asset:
     """
     Fetch an asset by id from the force_download.cfm endpoint, using headers to provide metadata
