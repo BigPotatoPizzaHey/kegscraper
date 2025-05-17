@@ -4,6 +4,8 @@ Utility functions/variables used commonly across the module
 
 import json
 import string
+import warnings
+import copy
 from datetime import datetime
 from typing import Any, Final
 
@@ -206,3 +208,55 @@ def keep_chrs(_string: str, chars=string.digits, cls: type = str):
 
 def slice_to_range(slc: slice) -> range:
     return range(*(arg for arg in (slc.start, slc.stop, slc.step) if arg is not None))
+
+
+def get_mode_attr(attr: str, objs: list[Any]) -> tuple[bool, Any]:
+    """
+    Calculate the mode value of the attribute `attr`
+    :param attr: attribute name
+    :param objs: object list with attribute `attr`
+    :return: success bool, then mode value
+    """
+    counts = []
+    for obj in objs:
+        if hasattr(obj, attr):
+            this_value = getattr(obj, attr)
+
+            for i, (value, count) in enumerate(counts):
+                if value == this_value:
+                    counts[i][1] += 1
+                    break
+            else:
+                counts.append([this_value, 1])
+
+    if counts:
+        return True, max(counts, key=lambda x: x[1])[0]
+    else:
+        return False, None
+
+
+def get_mode(objs: list[Any], no_dunder: bool = False):
+    """
+    Generate an object whose attributes are each a mode value of the inputted objects
+    :param objs:
+    :param no_dunder: whether to ignore __dunder__ attributes
+    """
+    if not objs:
+        return None
+
+    attrs = {}
+    for attr in dir(objs[0]):
+        if no_dunder and attr.startswith('__') and attr.endswith('__'):
+            continue
+
+        success, mode_attr = get_mode_attr(attr, objs)
+        if success:
+            try:
+                mode_attr = copy.deepcopy(mode_attr)
+            except Exception as e:
+                warnings.warn(f"Could not deepcopy {mode_attr}.\nMaybe try setting `no_dunder` to True? Exception: {e}")
+            attrs[attr] = mode_attr
+
+    ret = object.__new__(type(objs[0]))
+    ret.__dict__.update(attrs)
+    return ret

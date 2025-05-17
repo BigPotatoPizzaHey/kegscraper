@@ -17,7 +17,7 @@ from ..util import exceptions, commons
 
 import atexit
 
-from .timetable import WeekDate, Lesson
+from . import timetable
 
 
 class Session:
@@ -26,7 +26,7 @@ class Session:
 
         self._name: str | None = None
 
-        self._timetable_weeks: list[WeekDate] | None = None
+        self._timetable_weeks: list[timetable.WeekDate] | None = None
 
         atexit.register(self.logout)
 
@@ -150,23 +150,31 @@ class Session:
         return mimetypes.guess_extension(response.headers.get("Content-Type", "image/Jpeg"))
 
     # --- Timetable methods ---
-    def get_timetable_list(self, start_date: datetime | WeekDate = None, end_date: datetime | WeekDate = None) -> list[
-        Lesson]:
+    def get_timetable_list(self, start_date: datetime | timetable.WeekDate = None,
+                           end_date: datetime | timetable.WeekDate = None, w_a_b: str = None) -> list[
+        timetable.Lesson]:
         """
         Fetch the user's timetable starting at a corresponding week and ending on another, as a list of Lesson objects
+        :param w_a_b: week a or b on start date
         :param start_date: The start date given to bromcom. Can be a datetime or a WeekDate object. Defaults to the latest valid week.
         :param end_date: The end date fiven to bromcom. Defaults to a week ahead of the start date.
         :return: A list of lesson objects, each with a period #, subject name, class name, room name etc.
         """
-        if isinstance(start_date, WeekDate):
+
+        if isinstance(start_date, timetable.WeekDate):
             start_date = start_date.date
-        if isinstance(end_date, WeekDate):
+        if isinstance(end_date, timetable.WeekDate):
             end_date = end_date.date
 
         if start_date is None:
             start_date = self.current_week.date
         if end_date is None:
             end_date = start_date + timedelta(weeks=1)
+
+        if w_a_b is None:
+            w_a_b = self.timetable_weeks.index(self.get_tt_week(start_date)) % 2
+        else:
+            w_a_b = "ab".index(w_a_b)
 
         response = self._sess.get("https://www.bromcomvle.com/Timetable/GetTimeTable",
                                   params={
@@ -179,25 +187,66 @@ class Session:
         lessons = []
         for lesson_data in data:
             lesson_data: dict[str, str | int]
+
+            lesson_start_date = datetime.fromisoformat(
+                        lesson_data.get("startDate")
+                    )
             lessons.append(
-                Lesson(
+                timetable.Lesson(
                     lesson_data.get("periods"),
                     lesson_data.get("subject"),
                     lesson_data.get("class"),
                     lesson_data.get("room"),
                     lesson_data.get("teacherName"),
-                    datetime.fromisoformat(
-                        lesson_data.get("startDate")
-                    ),
+                    lesson_data.get("teacherID"),
+                    lesson_data.get("weekID"),
+                    lesson_start_date,
                     datetime.fromisoformat(
                         lesson_data.get("endDate")
                     ),
-                    color=lesson_data.get("subjectColour")
+                    color=lesson_data.get("subjectColour"),
+                    _sess=self,
+                    week_a_b="ab"[(self.get_tt_week_idx(lesson_start_date) - self.get_tt_week_idx(start_date) + w_a_b) % 2]
                 ))
         return lessons
 
+    def get_weeks_a_b(self, delta: int = 5):
+        """
+        :param delta: number of weeks before and after to measure
+        :return:
+        """
+        idx = self.current_week_idx
+
+        weeks0 = []
+        weeks1 = []
+
+        for i in range(idx - delta, idx + delta):
+            if not 0 <= i < len(self.timetable_weeks):
+                continue
+
+            week = self.timetable_weeks[i]
+            _timetable = self.get_timetable_list(week)
+
+            for lesson in _timetable:
+                if lesson.week_a_b == "a":
+                    weeks0.append(lesson)
+                else:
+                    weeks1.append(lesson)
+
+        return weeks0, weeks1
+
+    def get_mode_timetables(self, delta: int = 5):
+        """
+        Infer the base timetable. Look over multiple weeks to avoid being tripped up by pshe, or Comp Room lessons etc.
+        :param delta: # of weeks forward/back to look at
+        :return: a dictionary of a dictionary of a dictionary of lessons
+        """
+        a, b = self.get_weeks_a_b(delta)
+        return {"a": timetable.get_mode_timetable(a),
+                "b": timetable.get_mode_timetable(b)}
+
     @property
-    def timetable_weeks(self) -> list[WeekDate]:
+    def timetable_weeks(self) -> list[timetable.WeekDate]:
         """
         Fetch a list of valid weeks in the user's timetable
         :return: A list of WeekDate objects, representing the start of each week, also containing a term and week index.
@@ -219,28 +268,40 @@ class Session:
                 week = commons.webscrape_section(week, "Week ", '', cls=int)
 
                 self._timetable_weeks.append(
-                    WeekDate(term, week, value)
+                    timetable.WeekDate(term, week, value)
                 )
 
         return self._timetable_weeks
 
-    @property
-    def current_week(self) -> WeekDate | None:
+    def get_tt_week(self, _dtime: datetime) -> timetable.WeekDate | None:
         """
-        Gets the current existing timetable week (will go to last school week during holidays)
+        Gets the timetable week by datetime
         """
         prev = None
         for wdate in self.timetable_weeks:
-            if wdate.date > datetime.today():
+            if wdate.date > _dtime:
                 return prev
             prev = wdate
 
     @property
-    def current_week_idx(self) -> int:
+    def current_week(self) -> timetable.WeekDate | None:
+        """
+        Gets the current existing timetable week (will go to last school week during holidays)
+        """
+        return self.get_tt_week(datetime.today())
+
+    def get_tt_week_idx(self, _dtime: datetime) -> int:
+        """
+        Gets the timetable week index by datetime
+        """
         for i, wdate in enumerate(self.timetable_weeks):
-            if wdate.date > datetime.today():
+            if wdate.date > _dtime:
                 return i
         return -1
+
+    @property
+    def current_week_idx(self) -> int:
+        return self.get_tt_week_idx(datetime.today())
 
     # --- Attendance methods ---
     @property
