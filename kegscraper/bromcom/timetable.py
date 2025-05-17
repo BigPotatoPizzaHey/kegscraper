@@ -21,7 +21,7 @@ class Lesson:
     """
     A dataclass representing a lesson in the bromcom timetable
     """
-    period: int
+    period: str
     subject: str
     class_name: str
     room: str

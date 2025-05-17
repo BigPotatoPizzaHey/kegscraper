@@ -150,10 +150,10 @@ class Session:
         return mimetypes.guess_extension(response.headers.get("Content-Type", "image/Jpeg"))
 
     # --- Timetable methods ---
-    def get_timetable(self, start_date: datetime | WeekDate = None, end_date: datetime | WeekDate = None) -> list[
+    def get_timetable_list(self, start_date: datetime | WeekDate = None, end_date: datetime | WeekDate = None) -> list[
         Lesson]:
         """
-        Fetch the user's timetable starting at a corresponding week and ending on another
+        Fetch the user's timetable starting at a corresponding week and ending on another, as a list of Lesson objects
         :param start_date: The start date given to bromcom. Can be a datetime or a WeekDate object. Defaults to the latest valid week.
         :param end_date: The end date fiven to bromcom. Defaults to a week ahead of the start date.
         :return: A list of lesson objects, each with a period #, subject name, class name, room name etc.
@@ -234,6 +234,13 @@ class Session:
             if wdate.date > datetime.today():
                 return prev
             prev = wdate
+
+    @property
+    def current_week_idx(self) -> int:
+        for i, wdate in enumerate(self.timetable_weeks):
+            if wdate.date > datetime.today():
+                return i
+        return -1
 
     # --- Attendance methods ---
     @property
