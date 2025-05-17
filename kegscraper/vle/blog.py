@@ -41,7 +41,7 @@ class Comment:
     _session: session.Session = field(repr=False, default=None)
 
     @classmethod
-    def from_json(cls, data: dict[str, str | bool], _session: session.Session) -> Self:
+    def from_json(cls, data: dict[str, str | bool], _entry: Entry, _session: session.Session) -> Self:
         return cls(
             data.get("id"),
             BeautifulSoup(data.get("content", ''), "html.parser"),
@@ -52,7 +52,27 @@ class Comment:
                 name=data.get("fullname")
             ),
             data.get("delete"),
+            _entry,
+            _session
         )
+
+    @property
+    def text(self):
+        return self.content.text
+
+    def delete(self):
+        self._session.rq.post("https://vle.kegs.org.uk/comment/comment_ajax.php",
+                              data={
+                                  "sesskey": self._session.sesskey,
+                                  "action": "delete",
+                                  "client_id": "<nothing>",
+                                  "itemid": self._entry.id,
+                                  "area": "format_blog",
+                                  "courseid": 1,
+                                  "contextid": self._entry.context_id,
+                                  "component": "blog",
+                                  "commentid": self.id
+                              })
 
 
 @dataclass
@@ -69,7 +89,7 @@ class Entry:
     external_blog: External = None
     external_blog_entry: External = None
 
-    _context_id: int = None
+    context_id: int = None
 
     _session: session.Session = field(repr=False, default=None)
 
@@ -159,7 +179,7 @@ class Entry:
         njs_url = mdl.find("a", {"class": "showcommentsnonjs"})["href"]
         parse = urlparse(njs_url)
         qparse = parse_qs(parse.query)
-        self._context_id = int(qparse["comment_context"][0])
+        self.context_id = int(qparse["comment_context"][0])
 
     def get_comments(self, *, limit: int = 1, offset: int = 0) -> list[Comment]:
         data_lst = []
@@ -172,9 +192,26 @@ class Entry:
                                                    "itemid": self.id,
                                                    "area": "format_blog",
                                                    "courseid": "1",
-                                                   "contextid": self._context_id,
+                                                   "contextid": self.context_id,
                                                    "component": "blog",
                                                    "page": page
                                                }).json()["list"])
 
-        return [Comment.from_json(data, _session=self._session) for data in data_lst]
+        return [Comment.from_json(data, self, self._session) for data in data_lst]
+
+    def post_comment(self, content: str) -> Comment:
+        response = self._session.rq.post("https://vle.kegs.org.uk/comment/comment_ajax.php",
+                                         data={
+                                             "sesskey": self._session.sesskey,
+                                             "action": "add",
+                                             "client_id": "<nothing>",
+                                             "itemid": self.id,
+                                             "area": "format_blog",
+                                             "courseid": 1,
+                                             "contextid": self.context_id,
+                                             "component": "blog",
+                                             "content": content
+                                         })
+
+        ret = Comment.from_json(response.json(), self, self._session)
+        return ret

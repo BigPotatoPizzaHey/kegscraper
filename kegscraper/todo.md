@@ -9,47 +9,6 @@
 
 # vle
 
-### https://vle.kegs.org.uk/comment/comment_ajax.php
-
-`POST`
-
-Post a comment: Request payload:
-
-```py
-payload = {
-    "sesskey": "<Sesskey>",
-    "action": "add",
-    "client_id": "<cleint id>",
-    "itemid": "<blogpost id>",
-    "area": "format_blog",
-    "courseid": 1,
-    "contextid": "<CONTEXT ID>",
-    "component": "blog",
-    "content": "<comment content>"
-}
-```
-
-returns a JSON object representing the posted comment
-
----
-`POST`
-
-Delete a comment: Request payload:
-
-```py
-payload = {
-    "sesskey": "<sesskey>",
-    "action": "delete",
-    "client_id": "<client id>",
-    "itemid": "<Blogpost id>",
-    "area": "format_blog",
-    "courseid": 1,
-    "contextid": "<context id>",
-    "component": "blog",
-    "commentid": "<comment id>"
-}
-```
-
 ## https://vle.kegs.org.uk/tag/index.php
 
 `GET`
@@ -206,6 +165,7 @@ payload = {
 `GET`
 
 Remove interest of a tag
+
 query string parameters:
 
 ```py
@@ -220,6 +180,7 @@ params = {
 `GET`
 
 Add interest of a tag
+
 query string parameters:
 
 ```py
