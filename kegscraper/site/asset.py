@@ -53,6 +53,7 @@ def download_asset_by_id(_id: int) -> Asset:
                  response.headers.get("Content-Type"),
                  dateparser.parse(response.headers.get("Last-Modified", '')))
 
+@deprecated("Downloading assets by ID has been patched in ~2025. force_download.cfm is no longer used by the website.")
 def find_asset_ids(url: str) -> list[int]:
     """
     Scrape any asset ids by looking for force_download.cfm links
