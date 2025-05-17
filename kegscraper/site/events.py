@@ -11,6 +11,7 @@ from ..util import commons
 
 @dataclass
 class ATCEvent:
+    # stands for 'Add-to-calendar' event
     """
     Represents a calendar event managed by the atc api
     """

@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup, NavigableString, PageElement
 from . import session, user
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class Post:
     """Represents a post in a discussion in a forum on the kegsnet website"""
 
@@ -56,7 +56,7 @@ class Post:
         self.content = str(elem.find("div", {"class": "post-content-container"}))
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class Discussion:
     """Represents a discussion within a forum on the kegsnet website"""
     id: int = None
@@ -157,7 +157,7 @@ class Discussion:
         return self._top_post
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class Forum:
     """Represents a forum on KEGSNET - e.g. the news forum"""
     id: int

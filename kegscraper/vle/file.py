@@ -11,7 +11,7 @@ from datetime import datetime
 from . import session
 
 
-@dataclass(init=True)
+@dataclass
 class File:
     """
     Class representing both files and directories in kegsnet

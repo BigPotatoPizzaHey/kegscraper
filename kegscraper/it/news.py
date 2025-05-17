@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup, Comment
 from ..util import commons, exceptions
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class Category:
     """
     A dataclass representing a category of a news item on kegsIT
@@ -24,7 +24,7 @@ class Category:
     name: str
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class NewsItem:
     """
     A news 'article'/post on the kegsIT website

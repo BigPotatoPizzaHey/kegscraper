@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup, SoupStrainer
 
 from ..util import commons, exceptions
 
-@dataclass(init=True, repr=True)
+@dataclass
 class Asset:
     """
     Represents an asset that can be downloaded with the 'force_download.cfm' endpoint
@@ -30,7 +30,7 @@ class Asset:
         """
         return mimetypes.guess_extension(self.mime)
 
-@deprecated("Downloading assets by ID has been patched")
+@deprecated("Downloading assets by ID has been patched in ~2025")
 def download_asset_by_id(_id: int) -> Asset:
     """
     Fetch an asset by id from the force_download.cfm endpoint, using headers to provide metadata

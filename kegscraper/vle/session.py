@@ -185,10 +185,29 @@ class Session:
         """Fetch the files in the root directory"""
         return self.files_in_dir('/')
 
+    def add_filepath(self, fp: str, data: bytes, author: str = '', _license: str = "unknown"):
+        """
+        Add file by path - infer file title and file path, e.g. foo/bar/baz.txt
+        :param fp:
+        :param data:
+        :param author:
+        :param _license:
+        :return:
+        """
+        split = fp.split('/')
+        fp = '/'.join(split[:-1])
+        self.add_file(split[-1], data, author, _license, fp)
+
     def add_file(self, title: str, data: bytes, author: str = '', _license: str = "unknown", fp: str = '/',
                  save_changes: bool = True):
         """
         Make a POST request to add a new file to the given filepath
+
+
+        NOTE: KEGSNet automatically removes slashes from the title. if you want to put the file in a subdirectory, add slashes in the `fp` parameter
+
+        If the filename already exists, KEGSNet will automatically add a number on. e.g. foo.txt -> foo (1).txt
+
         :param title: file title
         :param data: file content (bytes)
         :param author: Author metadata. Defaults to ''

@@ -14,7 +14,7 @@ INVALID_USER: Final[str] = "Invalid user"
 FORBIDDEN_USER: Final[str] = "The details of this user are not available to you"
 
 
-@dataclass(init=True, repr=True)
+@dataclass
 class User:
     id: int
 
@@ -36,6 +36,8 @@ class User:
 
     _session: session.Session = field(repr=False, default=None)
 
+    flags: list[str] = field(repr=False, default_factory=list)
+
     @property
     def has_default_image(self) -> bool | None:
         if self.image_url is None:
@@ -53,13 +55,18 @@ class User:
         text = response.text
         soup = BeautifulSoup(text, "html.parser")
 
+        self.flags = []
+
         if DELETED_USER in text:
+            self.flags.append(DELETED_USER)
             warnings.warn(f"User id {self.id} is deleted!")
 
         elif INVALID_USER in text:
+            self.flags.append(INVALID_USER)
             warnings.warn(f"User id {self.id} is invalid!")
 
         elif FORBIDDEN_USER in text:
+            self.flags.append(FORBIDDEN_USER)
             warnings.warn(f"User id {self.id} is forbidden!")
 
         else:
