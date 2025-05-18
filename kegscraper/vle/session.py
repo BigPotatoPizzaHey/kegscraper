@@ -169,6 +169,9 @@ class Session:
         ret.update_by_id()
         return ret
 
+    def connect_site_news(self):
+        return self.connect_forum(377)
+
     # --- Private Files ---
     def _file_data(self, fp: str) -> dict:
         """Fetch the JSON response for private files in a given directory"""
