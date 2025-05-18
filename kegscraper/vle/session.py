@@ -329,12 +329,12 @@ class Session:
 
     def connect_tag_by_name(self, name: str) -> tag.Tag:
         _tag = tag.Tag(name, _session=self)
-        _tag.update_from_name()
+        _tag.update()
         return _tag
 
     def connect_tag_by_id(self, id: int) -> tag.Tag:
         _tag = tag.Tag(id=id, _session=self)
-        _tag.update_from_id()
+        _tag.update()
         return _tag
 
 # --- * ---

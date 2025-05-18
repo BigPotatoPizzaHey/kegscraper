@@ -3,6 +3,7 @@ Class representing tags accessible through here: https://vle.kegs.org.uk/tag/ind
 """
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from urllib.parse import urlparse, parse_qs
 
@@ -23,10 +24,21 @@ class Tag:
 
     id: int = None
 
+    item_id: str = None
+
     _session: session.Session = field(repr=False, default=None)
 
-    def _update_from_response(self, response: requests.Response):
+    @property
+    def url(self):
+        if self.id:
+            return f"https://vle.kegs.org.uk/tag/index.php?id={self.id}"
+        elif self.name:
+            return f"https://vle.kegs.org.uk/tag/index.php?tag={self.name}"
+        else:
+            warnings.warn(f"Could not infer a Tag id for {self}")
+            return ""
 
+    def _update_from_response(self, response: requests.Response):
         self.exists = response.url != "https://vle.kegs.org.uk/tag/search.php"
         if self.exists:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -46,33 +58,27 @@ class Tag:
             # get related tags
             self.related_tags.clear()
             related_tag_div = main.find("div", {"class": "tag-relatedtags"})
-            for li in related_tag_div.find_all("li"):
-                href = li.find("a").attrs["href"]
-                if href == '#':
-                    continue
+            if related_tag_div:
+                for li in related_tag_div.find_all("li"):
+                    href = li.find("a").attrs["href"]
+                    if href == '#':
+                        continue
 
-                parsed = urlparse(href)
-                q_parse = parse_qs(parsed.query)
-                related_tag_name = q_parse["tag"][0]
-                self.related_tags.append(
-                    Tag(
-                        related_tag_name,
-                        _session=self._session
+                    parsed = urlparse(href)
+                    q_parse = parse_qs(parsed.query)
+                    related_tag_name = q_parse["tag"][0]
+                    self.related_tags.append(
+                        Tag(
+                            related_tag_name,
+                            _session=self._session
+                        )
                     )
-                )
 
-    def update_from_name(self):
-        response = self._session.rq.get("https://vle.kegs.org.uk/tag/index.php",
-                                        params={
-                                            "tag": self.name
-                                        })
-        self._update_from_response(response)
-
-    def update_from_id(self):
-        response = self._session.rq.get("https://vle.kegs.org.uk/tag/index.php",
-                                        params={
-                                            "id": self.id
-                                        })
+    def update(self):
+        """
+        Update by name or id
+        """
+        response = self._session.rq.get(self.url)
         self._update_from_response(response)
 
     def _req_get_tagindex(self, page: int | str, ta: int | str):
@@ -164,3 +170,39 @@ class Tag:
                 )
 
         return entries
+
+    def edit(self, new_description: str | PageElement = None, related_tags: list[Tag | str] = None):
+        if new_description is None:
+            new_description = self.description
+        if related_tags is None:
+            related_tags = self.related_tags
+
+        if not isinstance(new_description, str):
+            if new_description is not None:
+                new_description = new_description.prettify()
+            # else:
+            #     new_description = ''
+
+        related_tags = list(map(lambda x: x if isinstance(x, str) else x.name, related_tags))
+
+        response = self._session.rq.get("https://vle.kegs.org.uk/tag/edit.php", params={"id": self.id})
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # it appears that order matters??? Not sure
+        data = [
+                   ("id", self.id),
+                   ("returnurl", ''),
+                   ("sesskey", self._session.sesskey),
+                   ("_qf__tag_edit_form", 1),
+                   ("mform_isexpanded_id_tag", new_description),
+                   ("description_editor[text]", ''),
+                   ("description_editor[format]", 1),
+                   ("description_editor[itemid]", soup.find("input", {"name": "description_editor[itemid]"})),
+                   ("relatedtags", "_qf__force_multiselect_submission"),
+               ] + [("relatedtags[]", tagname) for tagname in related_tags] + [
+                   ("submitbutton", "Update"),
+               ]
+
+        return self._session.rq.post("https://vle.kegs.org.uk/tag/edit.php",
+                                     data=data)
