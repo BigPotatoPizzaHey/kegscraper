@@ -5,6 +5,8 @@ from datetime import datetime
 from dataclasses import dataclass, field
 import dateparser
 
+from typing_extensions import deprecated
+
 from bs4 import BeautifulSoup, SoupStrainer
 from ..util import commons
 
@@ -80,14 +82,14 @@ class CalendarEvent:
 
         return self._event_data
 
-
+@deprecated("This endpoint has been removed")
 def get_events_pdf() -> bytes:
     """
     Fetch the KEGS event list pdf as bytes
     """
     return requests.get("https://www.kegs.org.uk/eventsPDF.cfm").content
 
-
+@deprecated("This endpoint has been removed")
 def get_calendar_page(date: datetime | str = None, by: str = "MONTH") -> list[CalendarEvent]:
     """
     Fetch the list of calendar events corresponding the page on the calendar
