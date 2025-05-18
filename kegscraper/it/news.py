@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
-import requests
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -51,10 +50,10 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
 
     # Find the page corresponding to the category & post
     response = commons.REQ.get(f"https://it.kegs.org.uk/",
-                        params={
-                            "cat": category,
-                            "paged": page
-                        })
+                               params={
+                                   "cat": category,
+                                   "paged": page
+                               })
 
     if response.status_code == 404:
         raise exceptions.NotFound(f"Could not find news page. Content: {response.content}")
@@ -71,9 +70,9 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
 
     # Actually scrape the main page for this news item
     text = commons.REQ.get("https://it.kegs.org.uk/",
-                        params={
-                            "p": news_id
-                        }).text
+                           params={
+                               "p": news_id
+                           }).text
     soup = BeautifulSoup(text, "html.parser")
 
     title = soup.find("div", {"class": "singlepage"}).text
@@ -101,7 +100,6 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
     # Get content
     content = contents_div.find("div", {"class": "entry"}).text.strip()
 
-
     return NewsItem(
         news_id,
         author,
@@ -113,7 +111,8 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
         category_obj
     )
 
-def load_news_category(category: int | Category = 7, *, limit: int=10, offset: int=0) -> list[NewsItem]:
+
+def load_news_category(category: int | Category = 7, *, limit: int = 10, offset: int = 0) -> list[NewsItem]:
     """
     Make mutliple requests to kegsIT to load an entire category of news data with a given offset and limit
     :param category: Category of news data to scrape. Defaults to the 'news' category
@@ -131,16 +130,3 @@ def load_news_category(category: int | Category = 7, *, limit: int=10, offset: i
             break
 
     return pages
-
-def download_header(idx: int = 1):
-    """
-    Get a https://it.kegs.org.uk background header image (jpg) by idx
-    :param idx: int 1-8 inclusive
-    :return: (bytes) jpg image
-    """
-    if not 0 < idx < 9:
-        return None
-    return commons.REQ.get(f"https://it.kegs.org.uk/wp-content/themes/corporate-v3/headers/header_{idx}.jpg").content
-
-def download_banner():
-    return commons.REQ.get("https://it.kegs.org.uk/wp-content/themes/corporate-v3/images/banner-page.jpg").content
