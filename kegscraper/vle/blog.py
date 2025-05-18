@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
@@ -8,7 +9,7 @@ from typing import Any, Self
 import dateparser
 from bs4 import PageElement, BeautifulSoup
 
-from . import session, user
+from . import session, user, tag
 from ..util import commons, exceptions
 
 
@@ -16,13 +17,6 @@ from ..util import commons, exceptions
 class External:
     """Represents an external blog or an external blog entry"""
     url: str
-    name: str
-
-    _session: session.Session = field(repr=False, default=None)
-
-
-@dataclass
-class Tag:
     name: str
 
     _session: session.Session = field(repr=False, default=None)
@@ -61,11 +55,11 @@ class Comment:
         return self.content.text
 
     def delete(self):
-        self._session.rq.post("https://vle.kegs.org.uk/comment/comment_ajax.php",
+        response =  self._session.rq.post("https://vle.kegs.org.uk/comment/comment_ajax.php",
                               data={
                                   "sesskey": self._session.sesskey,
                                   "action": "delete",
-                                  "client_id": "<nothing>",
+                                  "client_id": self._session.file_client_id,
                                   "itemid": self._entry.id,
                                   "area": "format_blog",
                                   "courseid": 1,
@@ -73,6 +67,15 @@ class Comment:
                                   "component": "blog",
                                   "commentid": self.id
                               })
+        if response:
+            data = response.json()
+            if data.get("error") == "Invalid comment ID":
+                raise exceptions.NotFound("Invalud comment ID")
+            else:
+                return data
+        else:
+            extra = f" This may be because you are not {self.author.name} ({self.author.id})" if self._session.user_id != self.author.id else ''
+            warnings.warn(f"Possibly couldn't delete {self}.{extra}")
 
 
 @dataclass
@@ -84,7 +87,7 @@ class Entry:
     audience: str = None
     content: PageElement | Any = field(repr=False, default=None)
     images: PageElement | Any = field(repr=False, default=None)
-    tags: list[Tag] = None
+    tags: list[tag.Tag] = None
 
     external_blog: External = None
     external_blog_entry: External = None
@@ -92,6 +95,10 @@ class Entry:
     context_id: int = None
 
     _session: session.Session = field(repr=False, default=None)
+
+    @property
+    def url(self):
+        return f"https://vle.kegs.org.uk/blog/index.php?entryid={self.id}"
 
     def update_from_id(self):
         text = self._session.rq.get("https://vle.kegs.org.uk/blog/index.php",
@@ -107,14 +114,14 @@ class Entry:
     def update_from_div(self, div: PageElement):
         if div is None:
             raise exceptions.NotFound(
-                f"BlogEntry #{self.id}, ({self}) does not seem to exist. It may have been deleted, or may never have existed")
+                f"BlogEntry #{self.id}, ({self}) does not seem to exist. It may have been deleted, or may never have existed, or you may be logged out.")
 
         header = div.find("div", {"class": "row header clearfix"})
         main = div.find("div", {"class": "row maincontent clearfix"})
 
         if header is None and main is None:
             raise exceptions.NotFound(
-                f"BlogEntry #{self.id}, ({self}) does not seem to exist. It may have been deleted, or may never have existed")
+                f"BlogEntry #{self.id}, ({self}) does not seem to exist. It may have been deleted, or may never have existed, or you may be logged out.")
 
         self.id = int(div["id"][1:])
 
@@ -173,7 +180,7 @@ class Entry:
                 parse = urlparse(tag_a["href"])
                 qparse = parse_qs(parse.query)
 
-                self.tags.append(Tag(qparse["tag"][0], _session=self._session))
+                self.tags.append(tag.Tag(qparse["tag"][0], _session=self._session))
 
         mdl = main.find("div", {"class": "mdl-left"})
         njs_url = mdl.find("a", {"class": "showcommentsnonjs"})["href"]
@@ -182,8 +189,11 @@ class Entry:
         self.context_id = int(qparse["comment_context"][0])
 
     def get_comments(self, *, limit: int = 1, offset: int = 0) -> list[Comment]:
+        if self.context_id is None:
+            self.update_from_id()
+
         data_lst = []
-        for page, start_idx in zip(*commons.generate_page_range(limit, offset, items_per_page=999, starting_page=0)):
+        for page, _ in zip(*commons.generate_page_range(limit, offset, items_per_page=999, starting_page=0)):
             data_lst += (self._session.rq.post("https://vle.kegs.org.uk/comment/comment_ajax.php",
                                                data={
                                                    "sesskey": self._session.sesskey,
@@ -200,11 +210,14 @@ class Entry:
         return [Comment.from_json(data, self, self._session) for data in data_lst]
 
     def post_comment(self, content: str) -> Comment:
+        if self.context_id is None:
+            self.update_from_id()
+
         response = self._session.rq.post("https://vle.kegs.org.uk/comment/comment_ajax.php",
                                          data={
                                              "sesskey": self._session.sesskey,
                                              "action": "add",
-                                             "client_id": "<nothing>",
+                                             "client_id": self._session.file_client_id,
                                              "itemid": self.id,
                                              "area": "format_blog",
                                              "courseid": 1,

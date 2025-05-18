@@ -171,10 +171,13 @@ def generate_page_range(limit: int, offset: int, items_per_page: int, starting_p
         starting_page + offset // items_per_page,
         1 + starting_page + (offset + limit - 1) // items_per_page
     )
+    # start_idxs = [offset] + [0] * (limit // items_per_page)
 
     return (
         page_range,
+        # start_idxs
         [items_per_page * (i - starting_page) for i in page_range]
+    # todo: review this ^^, maybe replace with the commented out start_idxs and add a 3rd output arg of end_idxs
     )
 
 
@@ -186,7 +189,7 @@ def find_links(soup: BeautifulSoup) -> list[str]:
     return ret
 
 
-def to_dformat(date: datetime, sep: str='-') -> str:
+def to_dformat(date: datetime, sep: str = '-') -> str:
     """
     Convert a datetime to the format dd-mm-yyyy
     """
@@ -205,6 +208,7 @@ def keep_chrs(_string: str, chars=string.digits, cls: type = str):
     return cls(''.join(filter(
         lambda c: c in chars, _string
     )))
+
 
 def slice_to_range(slc: slice) -> range:
     return range(*(arg for arg in (slc.start, slc.stop, slc.step) if arg is not None))

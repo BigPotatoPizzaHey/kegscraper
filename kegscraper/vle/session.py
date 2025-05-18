@@ -4,12 +4,12 @@ Session class and login/login by moodle function
 from __future__ import annotations
 
 import re
-
+import atexit
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 
-from . import file, user, forum, blog
+from . import file, user, forum, blog, tag
 from ..util import commons
 
 
@@ -29,6 +29,8 @@ class Session:
         self._user: user.User | None = None
 
         self.assert_login()
+
+        atexit.register(self.logout)
 
     # --- Session/auth related methods ---
     @property
@@ -137,6 +139,16 @@ class Session:
     def assert_login(self):
         """Raise an error if there is no connected user"""
         assert self.username
+
+    def logout(self):
+        """
+        Send a logout request to KEGSNet. After this is called, the session is supposed to no longer function.
+        :return: The response from KEGSNet
+        """
+        response = self.rq.get("https://vle.kegs.org.uk/login/logout.php",
+                    params={"sesskey": self.sesskey})
+        print(f"Logged out with status code {response.status_code}")
+        return response
 
     # --- Connecting ---
     def connect_user(self, _id: int) -> user.User:
@@ -310,6 +322,17 @@ class Session:
         entry.update_from_id()
         return entry
 
+    # --- Tags ---
+
+    def connect_tag_by_name(self, name: str) -> tag.Tag:
+        _tag = tag.Tag(name, _session=self)
+        _tag.update_from_name()
+        return _tag
+
+    def connect_tag_by_id(self, id: int) -> tag.Tag:
+        _tag = tag.Tag(id=id, _session=self)
+        _tag.update_from_id()
+        return _tag
 
 # --- * ---
 

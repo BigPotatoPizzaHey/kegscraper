@@ -16,7 +16,7 @@ FORBIDDEN_USER: Final[str] = "The details of this user are not available to you"
 
 @dataclass
 class User:
-    id: int
+    id: int = None
 
     name: str = None
     email: str = field(repr=False, default=None)

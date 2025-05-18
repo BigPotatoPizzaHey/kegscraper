@@ -122,7 +122,7 @@ def load_news_category(category: int | Category = 7, *, limit: int=10, offset: i
     :return: A list of posts aka news items
     """
     pages = []
-    for page, _ in zip(*commons.generate_page_range(limit, offset, 1, 1)):
+    for page in commons.generate_page_range(limit, offset, 1, 1)[0]:
         # print(page)
         try:
             pages.append(get_news_page(page, category))
