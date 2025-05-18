@@ -68,7 +68,7 @@ class CalendarEvent:
     def event_data(self) -> ATCEvent:
         """Get the actual data for the calendar event, and return as an ATCEvent object"""
         if self._event_data is None:
-            text = requests.get(self.url).text
+            text = commons.REQ.get(self.url).text
             soup = BeautifulSoup(text, "html.parser")
 
             atc_btn = soup.find("span", {"class": "addtocalendar"})
@@ -87,7 +87,7 @@ def get_events_pdf() -> bytes:
     """
     Fetch the KEGS event list pdf as bytes
     """
-    return requests.get("https://www.kegs.org.uk/eventsPDF.cfm").content
+    return commons.REQ.get("https://www.kegs.org.uk/eventsPDF.cfm").content
 
 @deprecated("This endpoint has been removed")
 def get_calendar_page(date: datetime | str = None, by: str = "MONTH") -> list[CalendarEvent]:
@@ -105,7 +105,7 @@ def get_calendar_page(date: datetime | str = None, by: str = "MONTH") -> list[Ca
         date = f"{str(date.day).zfill(2)}/{str(date.month).zfill(2)}/{date.year}"
 
     by = by.upper()
-    response = requests.get("https://www.kegs.org.uk/plugins/cfc/bycontentid/website/calendar.cfc",
+    response = commons.REQ.get("https://www.kegs.org.uk/plugins/cfc/bycontentid/website/calendar.cfc",
                             params={
                                 "method": "fncDisplayMobile",
                                 "returnFormat": "json",  # It doesn't return JSON though...

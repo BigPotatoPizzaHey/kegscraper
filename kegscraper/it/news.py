@@ -50,7 +50,7 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
         category = category.id
 
     # Find the page corresponding to the category & post
-    response = requests.get(f"https://it.kegs.org.uk/",
+    response = commons.REQ.get(f"https://it.kegs.org.uk/",
                         params={
                             "cat": category,
                             "paged": page
@@ -70,7 +70,7 @@ def get_news_page(page: int = 1, category: int | Category = 7) -> NewsItem:
     news_id = int(qparse["p"][0])
 
     # Actually scrape the main page for this news item
-    text = requests.get("https://it.kegs.org.uk/",
+    text = commons.REQ.get("https://it.kegs.org.uk/",
                         params={
                             "p": news_id
                         }).text

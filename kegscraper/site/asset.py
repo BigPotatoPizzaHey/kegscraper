@@ -39,7 +39,7 @@ def download_asset_by_id(_id: int) -> Asset:
     """
 
     url = "https://www.kegs.org.uk/force_download.cfm"
-    response = requests.get(url,
+    response = commons.REQ.get(url,
                             params={"id": _id})
 
     if response.url == f"{url}?id={_id}":
@@ -65,7 +65,7 @@ def find_asset_ids(url: str) -> list[int]:
     global_netloc = urlparse(url).netloc
 
     links = commons.find_links(BeautifulSoup(
-        requests.get(url).text, "html.parser", parse_only=SoupStrainer("a")
+        commons.REQ.get(url).text, "html.parser", parse_only=SoupStrainer("a")
     ))
 
     for link in links:

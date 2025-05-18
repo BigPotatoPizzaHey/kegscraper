@@ -9,9 +9,12 @@ import copy
 from datetime import datetime
 from typing import Any, Final
 
+import requests
 from bs4 import BeautifulSoup
 
 from . import exceptions
+
+REQ: Final[requests.Session] = requests.Session()
 
 DIGITS: Final = tuple("0123456789")
 
