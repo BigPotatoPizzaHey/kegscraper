@@ -9,29 +9,6 @@
 
 # vle
 
-## https://vle.kegs.org.uk/tag/edit.php
-
-`POST`
-Edit a tag's page
-
-request payload:
-
-```py
-payload = {
-    "id": 643,
-    "returnurl": None,
-    "sesskey": "<sesskey>",
-    "_qf__tag_edit_form": 1,
-    "mform_isexpanded_id_tag": 1,
-    "description_editor[text]": "<html description content>",
-    "description_editor[format]": 1,
-    "description_editor[itemid]": "Item id. probably in html somewhere",
-    "relatedtags": "_qf__force_multiselect_submission",
-    "relatedtags[]": ["<list of related tags>"],  # We can't have duplicate dict keys
-    "submitbutton": "Update"
-}
-```
-
 ## https://vle.kegs.org.uk/tag/user.php
 
 `GET`
@@ -138,3 +115,12 @@ json = [
 ]
 
 ```
+
+# papercut
+
+## http://printing.kegs.local:9191/app?service=page/UserTransactions
+## http://printing.kegs.local:9191/app?service=page/UserPrintLogs
+## http://printing.kegs.local:9191/app?service=page/UserReleaseJobs
+## http://printing.kegs.local:9191/environment/dashboard/mfeise_c21
+## http://printing.kegs.local:9191/app?service=chart/UserSummary/668/400/$Chart&sp=SBalance+history+for+mfeise_c21&69402papercut-mf
+^^ an image (png)
