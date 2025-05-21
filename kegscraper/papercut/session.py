@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dateparser
 import requests
 from bs4 import BeautifulSoup
@@ -25,36 +27,40 @@ class Session:
 
     pages_graph: list[int] = None  # idx -1 is this week, -2 is last week, etc. (reverse?)
 
-    _organisation: org.Organisation = None
+    organisation: org.Organisation = None
 
     rq: requests.Session = None
 
-    @property
-    def organisation(self):
-        if not self._organisation:
-            self.update_by_env()
-
-        return self._organisation
-
     def update_by_env(self):
+        """
+        *not tested!*
+        Reassign session attributes (esp. self.organisation) by making a request to the environment dashboard
+        """
         response = self.rq.get(f"http://printing.kegs.local:9191/environment/dashboard/{self.username}")
 
         self.update_by_env_dash_html(BeautifulSoup(response.text, "html.parser"))
 
     def logout(self):
+        """
+        Supposedly send a logout request. Probably doesn't do anything
+        """
         self.rq.get("http://printing.kegs.local:9191/app?service=direct/1/UserSummary/$UserBorder.logoutLink")
 
     def update_from_dashboard(self):
+        """
+        Reassign session attributes by making a request to the main dashboard
+        """
         resp = self.rq.get("http://printing.kegs.local:9191/app?service=page/UserSummary")
-        self.update_by_html(BeautifulSoup(resp.text, "html.parser"))
+        self.update_by_dash_html(BeautifulSoup(resp.text, "html.parser"))
 
-    def _gen_org(self):
-        if not self._organisation:
-            self._organisation = org.Organisation(sess=self)
+    def __post_init__(self):
+        self.organisation = org.Organisation(sess=self)
 
     def update_by_env_dash_html(self, soup: BeautifulSoup):
-        self._gen_org()
-
+        """
+        Reassign session attributes (esp. self.organisation) by using the environment dashboard
+        :param soup: Beautifulsoup representing the environment dashboard
+        """
         # maybe scrape sheets (week/month), cost/month + trees/co2/energy
 
         # graph (canvas) - have to scrape js!
@@ -70,7 +76,7 @@ class Session:
                     f1 = content.find(find_str)
                     f2 = content[f1 + 8:].find(find_str) + f1 + 8
 
-                    self._organisation.pages_graph = commons.consume_json(content, f1 + 6)  # num. pages
+                    self.organisation.pages_graph = commons.consume_json(content, f1 + 6)  # num. pages
                     self.pages_graph = commons.consume_json(content, f2 + 6)  # num. pages
 
         for div in (soup.find("div", {"class": "box box50-100 medium"}),
@@ -81,19 +87,21 @@ class Session:
                 for stat in div.find_all("div", {"class": "env-stats-text"}) + \
                             div.find_all("div", {"class": "centered env-impact"}):
                     stat = stat.text.strip()
-                    print(repr(stat))
 
                     if stat.endswith(" trees"):
-                        self._organisation.trees = float(stat.split()[0])
+                        self.organisation.trees = float(stat.split()[0])
                     elif stat.endswith(" kg of CO2"):
-                        self._organisation.co2 = 1000 * int(stat.replace(',', '').split()[0])
+                        self.organisation.co2 = 1000 * int(stat.replace(',', '').split()[0])
                     elif stat.endswith(" bulb hours"):
-                        self._organisation.energy = 60 * 60 * 60 * int(stat.replace(',', '').split()[0])
+                        self.organisation.energy = 60 * 60 * 60 * int(stat.replace(',', '').split()[0])
                     elif stat.startswith("Since\n"):
-                        self._organisation.since = dateparser.parse(stat[len("Since\n"):])
+                        self.organisation.since = dateparser.parse(stat[len("Since\n"):])
 
-
-    def update_by_html(self, soup: BeautifulSoup):
+    def update_by_dash_html(self, soup: BeautifulSoup):
+        """
+        Reassign session attributes using the main dashboard html page
+        :param soup: Beautifulsoup representing the html
+        """
         self.username = soup.find("span", {"id": "username"}).text
 
         bal_div = soup.find("div", {"class": "widget stat-bal"})
@@ -127,11 +135,20 @@ class Session:
                     self.since = dateparser.parse(val)
 
 
-def login(username: str, password: str):
+def login(username: str, password: str) -> Session:
+    """
+    Login to papercut mf
+    :param username:
+    :param password:
+    :return: A session object
+    """
+
     sess = requests.Session()
 
+    # Make an initial request (to set cookies)
     sess.get("http://printing.kegs.local:9191/user")
 
+    # These headers were copied directly from my browser (no cookies)
     sess.headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "Accept-Encoding": "gzip, deflate",
@@ -163,6 +180,7 @@ def login(username: str, password: str):
                      })
 
     ret = Session(rq=sess, username=username)
-    ret.update_by_html(BeautifulSoup(resp.text, "html.parser"))
+    # Since we receive the html of the main dashboard as the response content, we might as well parse it
+    ret.update_by_dash_html(BeautifulSoup(resp.text, "html.parser"))
 
     return ret
