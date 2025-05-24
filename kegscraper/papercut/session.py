@@ -11,7 +11,6 @@ from ..util import commons
 
 from . import org
 
-
 @dataclass
 class Session:
     username: str = None
@@ -142,23 +141,23 @@ def login(username: str, password: str) -> Session:
     :param password:
     :return: A session object
     """
-
     sess = requests.Session()
 
     # Make an initial request (to set cookies)
     sess.get("http://printing.kegs.local:9191/user")
 
     # These headers were copied directly from my browser (no cookies)
+    # Some of these headers have to be removed so that it works for other pages
     sess.headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Encoding": "gzip, deflate",
+        # "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        # "Accept-Encoding": "gzip, deflate",
         "Accept-Language": "en-US,en;q=0.9",
         "Cache-Control": "max-age=0",
         "Connection": "keep-alive",
-        "Content-Length": "302",
-        "Content-Type": "application/x-www-form-urlencoded",
+        # "Content-Length": "302",
+        # "Content-Type": "application/x-www-form-urlencoded",
         "Host": "printing.kegs.local:9191",
-        "Origin": "http://printing.kegs.local:9191",
+        # "Origin": "http://printing.kegs.local:9191",
         "Referer": "http://printing.kegs.local:9191/app",
         "Upgrade-Insecure-Requests": "1",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
