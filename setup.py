@@ -8,7 +8,7 @@ with open("LICENSE", "r") as lf:
 
 setup(
     name='kegscraper',
-    version='v0.1.5',
+    version='v0.1.6',
     packages=['kegscraper', 'kegscraper.vle', 'kegscraper.bromcom', 'kegscraper.it', 'kegscraper.oliver',
               'kegscraper.site', 'kegscraper.util'],
     url='https://kegs.org.uk/',
