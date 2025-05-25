@@ -115,3 +115,12 @@ json = [
 ]
 
 ```
+
+# papercut
+
+## http://printing.kegs.local:9191/app?service=page/UserTransactions
+## http://printing.kegs.local:9191/app?service=page/UserPrintLogs
+## http://printing.kegs.local:9191/app?service=page/UserReleaseJobs
+## http://printing.kegs.local:9191/environment/dashboard/mfeise_c21
+## http://printing.kegs.local:9191/app?service=chart/UserSummary/668/400/$Chart&sp=SBalance+history+for+mfeise_c21&69402papercut-mf
+^^ an image (png)

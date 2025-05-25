@@ -5,11 +5,16 @@ from __future__ import annotations
 
 import re
 import atexit
+import warnings
+from typing import Literal
+from datetime import datetime
+
+import dateparser
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 
-from . import file, user, forum, blog, tag
+from . import file, user, forum, blog, tag, calendar, course
 from ..util import commons
 
 
@@ -56,26 +61,26 @@ class Session:
 
         return self._sesskey
 
-    def connect_notifications(self, *, limit: int = 20, offset: int = 0, user_id: int = None) -> tuple[list, int]:
+    def connect_notifications(self, *, limit: int = 20, offset: int = 0,
+                              user_id: int = None) -> list:  # tuple[list, int]:
         if user_id is None:
             user_id = self.user_id
 
-        data: dict = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                                  params={
-                                      "sesskey": self.sesskey,
-                                      "info": "message_popup_get_popup_notifications"
-                                  },
-                                  json=[{"index": 0,  # idk what this is for
-                                         "methodname": "message_popup_get_popup_notifications",
-                                         "args": {
-                                             "limit": limit,
-                                             "offset": offset,
-                                             "useridto": str(user_id)}
-                                         }]
-                                  ).json()["data"]
+        data = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+                            params={
+                                "sesskey": self.sesskey,
+                                "info": "message_popup_get_popup_notifications"
+                            },
+                            json=[{"index": 0,  # idk what this is for
+                                   "methodname": "message_popup_get_popup_notifications",
+                                   "args": {
+                                       "limit": limit,
+                                       "offset": offset,
+                                       "useridto": str(user_id)}
+                                   }]
+                            ).json()  # ["data"]
 
-
-        return data["notifications"], data["unreadcount"]
+        return data  # data["notifications"], data["unreadcount"]
 
     @property
     def file_client_id(self):
@@ -146,7 +151,7 @@ class Session:
         :return: The response from KEGSNet
         """
         response = self.rq.get("https://vle.kegs.org.uk/login/logout.php",
-                    params={"sesskey": self.sesskey})
+                               params={"sesskey": self.sesskey})
         print(f"Logged out with status code {response.status_code}")
         return response
 
@@ -332,10 +337,69 @@ class Session:
         _tag.update()
         return _tag
 
-    def connect_tag_by_id(self, id: int) -> tag.Tag:
-        _tag = tag.Tag(id=id, _session=self)
+    def connect_tag_by_id(self, _id: int) -> tag.Tag:
+        _tag = tag.Tag(id=_id, _session=self)
         _tag.update()
         return _tag
+
+    # --- Calendar ---
+
+    def connect_calendar(self, view_type: Literal["month", "day", "upcoming"] = "day",
+                         _time: int | float | datetime = None, _course: int | str | course.Course = None):
+        if isinstance(_time, datetime):
+            _time = _time.timestamp()
+
+        if isinstance(_course, course.Course):
+            _course = _course.id
+
+        resp = self.rq.get("https://vle.kegs.org.uk/calendar/view.php",
+                           params={
+                               "view": view_type,
+                               "time": _time,
+                               "course": _course
+                           })
+        ret = calendar.Calendar(_sess=self)
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        div = soup.find("div", {"class": "calendarwrapper"})
+
+        if view_type == "month":
+            ...
+        elif view_type in ("day", "upcoming"):
+            evlist = div.find("div", {"class": "eventlist"})
+            for event_div in evlist.find_all("div", {"data-type": "event"}):
+                cal_event = calendar.Event(_sess=self)
+
+                head = event_div.find("div", {"class": "box card-header clearfix calendar_event_user"})
+
+                cal_event.title = head.text.strip()
+
+                body = event_div.find("div", {"class": "description card-body"})
+
+                for row in body.find_all("div", {"class": "row"}):
+                    row_type = row.find("i").get("title")
+
+                    row_text = row.text.strip()
+                    match row_type:
+                        case "When":
+                            cal_event.date = dateparser.parse(row_text)
+
+                        case "Event type":
+                            cal_event.type = row_text
+
+                        case "Location":
+                            cal_event.location = row_text
+
+                        case "Description":
+                            cal_event.description = row_text
+
+                        case _:
+                            warnings.warn(
+                                f"Did not recognise calendar row type: {row_type!r} - report this on github: https://github.com/BigPotatoPizzaHey/kegscraper")
+                ret.events.append(cal_event)
+
+        return ret
+
 
 # --- * ---
 

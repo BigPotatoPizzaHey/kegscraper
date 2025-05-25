@@ -18,7 +18,4 @@ setup(
     description="The ultimate KEGS webscraping module",
     long_description=longdesc,
     long_description_content_type="text/markdown",
-    package_dir={
-        "kegscraper": "kegscraper"
-    }
 )
