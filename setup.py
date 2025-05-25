@@ -3,7 +3,7 @@ import os
 
 setup(
     name='kegscraper',
-    version='v0.1.7',
+    version='v0.1.8',
     packages=['kegscraper'] +
              [f"kegscraper.{subdir}" for subdir in next(os.walk("kegscraper"))[1] if subdir != "__pycache__"],
     url='https://kegs.org.uk/',
