@@ -3,8 +3,11 @@ from bs4 import BeautifulSoup
 
 from ..util import commons
 
-def api_fetch(url: str):
+def api_fetch(url: str, rq: requests.Session = None):
     """Make an api call to the oliver library api."""
+
+    if rq is None:
+        rq = commons.REQ
 
     url = f"https://kegs.oliverasp.co.uk/library/home/api/{url}"
     # For some reason it seems that it provides us with some query params then redirects us
@@ -38,4 +41,4 @@ def api_fetch(url: str):
 
         qs[attrs.get("name")] = selected.attrs.get("value")
 
-    return commons.REQ.get(url, params=qs).json()
+    return rq.get(url, params=qs).json()
