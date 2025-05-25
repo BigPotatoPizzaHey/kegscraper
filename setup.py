@@ -8,8 +8,9 @@ with open("LICENSE", "r") as lf:
 
 setup(
     name='kegscraper',
-    version='v0.1.4',
-    packages=['kegscraper'],
+    version='v0.1.5',
+    packages=['kegscraper', 'kegscraper.vle', 'kegscraper.bromcom', 'kegscraper.it', 'kegscraper.oliver',
+              'kegscraper.site', 'kegscraper.util'],
     url='https://kegs.org.uk/',
     license=lisc,
     author='BigPotatoPizzaHey',
@@ -17,4 +18,7 @@ setup(
     description="The ultimate KEGS webscraping module",
     long_description=longdesc,
     long_description_content_type="text/markdown",
+    package_dir={
+        "kegscraper": "kegscraper"
+    }
 )
