@@ -21,5 +21,6 @@ setup(
         'setuptools',
         'pypdf',
         'pyperclip'
-    ]
+    ],
+    data_files=[("/", ["requirements.txt"])]
 )
