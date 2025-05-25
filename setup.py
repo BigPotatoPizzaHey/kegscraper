@@ -9,7 +9,7 @@ with open("LICENSE", "r") as lf:
 
 setup(
     name='kegscraper',
-    version='v0.1.5',
+    version='v0.1.6',
     packages=['kegscraper'] + [f"kegscraper.{subdir}" for subdir in next(os.walk("kegscraper"))[1] if subdir != "__pycache__"],
     url='https://kegs.org.uk/',
     license=lisc,
