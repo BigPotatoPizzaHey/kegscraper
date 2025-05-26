@@ -8,6 +8,7 @@ import warnings
 import copy
 from datetime import datetime
 from typing import Any, Final
+from inspect import signature
 
 import requests
 from bs4 import BeautifulSoup
@@ -180,7 +181,7 @@ def generate_page_range(limit: int, offset: int, items_per_page: int, starting_p
         page_range,
         # start_idxs
         [items_per_page * (i - starting_page) for i in page_range]
-    # todo: review this ^^, maybe replace with the commented out start_idxs and add a 3rd output arg of end_idxs
+        # todo: review this ^^, maybe replace with the commented out start_idxs and add a 3rd output arg of end_idxs
     )
 
 
@@ -267,3 +268,47 @@ def get_mode(objs: list[Any], no_dunder: bool = False):
     ret = object.__new__(type(objs[0]))
     ret.__dict__.update(attrs)
     return ret
+
+
+def eval_inputs(soup: BeautifulSoup) -> dict[str, Any]:
+    qs = {}
+
+    # Parse inputs
+    for _input in soup.find_all("input"):
+        qs[_input.get("name")] = _input.get("value")
+
+    # Parse select elements
+    for select in soup.find_all("select"):
+        options = select.find_all("option")
+
+        # If there's no predefined value just pick the first
+        selected_id = select.get("selected")
+        selected = None
+        for option in options:
+            if not selected:
+                if selected_id is not None:
+                    if option.text == selected_id:
+                        selected = option
+                else:
+                    selected = option
+
+        qs[select.get("name")] = selected.get("value")
+
+    return qs
+
+
+def with_kwargs(cls):
+    """
+    Decorator for dataclasses to add a 'from_kwargs' method that ignores invalid kwargs
+
+    for type hinting, add
+
+    @classmethod
+    def from_kwargs(cls, **kwargs) -> Self: ...
+    """
+
+    def from_kwargs(**kwargs):
+        return cls(**{k: v for k, v in kwargs.items() if k in signature(cls).parameters})
+
+    cls.from_kwargs = from_kwargs
+    return cls
