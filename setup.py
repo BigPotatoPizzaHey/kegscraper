@@ -1,15 +1,7 @@
 from setuptools import setup
 import os
 
-requires = [
-    "requests~=2.32.3",
-    "bs4~=0.0.2",
-    "beautifulsoup4~=4.12.3",
-    "dateparser~=1.2.0",
-    "setuptools~=75.6.0",
-    "pypdf~=5.1.0",
-    "pyperclip~=1.9.0"
-]
+requires = [req.strip() for req in open("requirements.txt").readlines()]
 
 setup(
     name='kegscraper',
