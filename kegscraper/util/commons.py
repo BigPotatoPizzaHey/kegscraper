@@ -105,7 +105,7 @@ def consume_json(_string: str, i: int = 0) -> str | float | int | dict | list | 
     Reads a JSON string and stops at the natural end (i.e. when brackets close, or when quotes end, etc.)
     """
     # Named by ChatGPT
-    section = ''.join(_string[i:])
+    section = _string[i:]
     if section.startswith("true"):
         return True
     elif section.startswith("false"):
@@ -141,7 +141,11 @@ def consume_json(_string: str, i: int = 0) -> str | float | int | dict | list | 
                 depth -= 1
 
         if depth == 0 and json_text.strip():
-            return json.loads(json_text.strip())
+            try:
+                return json.loads(json_text.strip())
+            except Exception as e:
+                warnings.warn(f"Failed to decode: {json_text.strip()!r}")
+                raise e
 
     raise exceptions.UnclosedJSONError(f"Unclosed JSON string, read {json_text}")
 
