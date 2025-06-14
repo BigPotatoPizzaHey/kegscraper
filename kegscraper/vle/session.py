@@ -302,6 +302,7 @@ class Session:
         return entries
 
     def connect_user_blog_entries(self, userid: int = None, *, limit: int = 10, offset: int = 0) -> list[blog.Entry]:
+        warnings.warn("This will be deprecated soon. Try to use connect_blog_entries instead")
         if userid is None:
             userid = self.user_id
 
@@ -317,17 +318,49 @@ class Session:
 
         return entries
 
-    def connect_site_blog_entries(self, *, limit: int = 10, offset: int = 0) -> list[blog.Entry]:
-        entries = []
-        for page, _ in zip(*commons.generate_page_range(limit, offset, 10, 0)):
-            text = self.rq.get("https://vle.kegs.org.uk/blog/index.php",
-                               params={
-                                   "blogpage": page
-                               }).text
-            soup = BeautifulSoup(text, "html.parser")
-            entries += self._find_blog_entires(soup)
+    def connect_blog_entries(self, *, limit: int = 10, offset: int = 0,
+                             # search filters
+                             _tag: tag.Tag = None,
+                             _course: course.Course = None,
+                             _user: user.User = None,
+                             tagname: str = None,
+                             tagid: int = None,
+                             userid: int = None,
+                             cmid: int = None,  # idk what this one is
+                             entryid: int = None,
+                             groupid: int = None,
+                             courseid: int = None,
+                             search: str = None,
+                             ):
+        if offset != 0:
+            warnings.warn("offset+limit -> page+perpage conversion has not been made yet! Offset will be ignored",
+                          category=exceptions.UnimplementedWarning)
 
-        return entries
+        filters = []
+        def add_filter(name: str, value):
+            if value is not None:
+                filters.append({"name": name, "value": value})
+
+        if _tag:
+            tagid = _tag.id
+        if _user:
+            userid = _user.id
+        if _course:
+            courseid = _course.id
+
+        add_filter("tag", tagname)
+        add_filter("tagid", tagid)
+        add_filter("userid", userid)
+        add_filter("cmid", cmid)
+        add_filter("entryid", entryid)
+        add_filter("groupid", groupid)
+        add_filter("courseid", courseid)
+        add_filter("search", search)
+
+        data = self.webservice("core_blog_get_entries",
+                               page=0, perpage=limit, filters=filters)
+
+        return [blog.Entry.from_json(entry_data, self) for entry_data in data["entries"]]
 
     def connect_blog_entry_by_id(self, _id: int):
         entry = blog.Entry(id=_id, _session=self)
@@ -406,16 +439,7 @@ class Session:
 
     # -- Courses -- #
     def connect_recent_courses(self, limit: int = 10, offset: int = 0):
-        data = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                            params={
-                                "sesskey": self.sesskey,
-                                "info": "core_course_get_recent_courses"
-                            },
-                            json=[
-                                {"index": 0, "methodname": "core_course_get_recent_courses",
-                                 "args": {"limit": limit, "offset": offset}}
-                            ]).json()[0]["data"]
-
+        data = self.webservice("core_course_get_recent_courses", limit=limit, offset=offset)
         return [course.Course.from_json(course_data) for course_data in data]
 
     def webservice(self, name, /, **args):
@@ -431,7 +455,7 @@ class Session:
 
         if data["error"]:
             raise exceptions.WebServiceError(
-                f"{data["exception"]["invalidparameter"]!r}: {data["exception"]["message"]!r}")
+                f"{data["exception"]["errorcode"]!r}: {data["exception"]["message"]!r}")
 
         return data["data"]
 

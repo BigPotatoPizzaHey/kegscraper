@@ -6,6 +6,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 from urllib.parse import urlparse, parse_qs
+from typing import Self
 
 import dateparser
 import requests
@@ -23,10 +24,23 @@ class Tag:
     related_tags: list[Tag] = field(default_factory=list)
 
     id: int = None
+    flagged_inappropriate: bool = field(repr=False, default=False)
 
     item_id: str = None
 
     _session: session.Session = field(repr=False, default=None)
+
+    @classmethod
+    def from_json(cls, data: dict, _sess: session.Session) -> Self:
+        return cls(
+            flagged_inappropriate=bool(data["flag"]),
+            id=data["id"],
+            item_id=data["itemid"],
+            name=data["name"], # == rawname?
+            exists=True,
+            # instance id, context id?
+            _session=_sess
+        )
 
     @property
     def url(self):
@@ -152,7 +166,7 @@ class Tag:
                     blog.Entry(
                         id=entry_id,
                         subject=subject,
-                        date=date,
+                        date_created=date,
                         author=author,
                         _session=self._session
                     )

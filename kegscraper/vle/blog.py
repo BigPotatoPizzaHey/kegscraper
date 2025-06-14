@@ -9,15 +9,16 @@ from typing import Any, Self
 import dateparser
 from bs4 import PageElement, BeautifulSoup
 
-from . import session, user, tag
+from . import session, user, tag, file
 from ..util import commons, exceptions
 
 
 @dataclass
 class External:
     """Represents an external blog or an external blog entry"""
-    url: str
-    name: str
+    url: str = None
+    name: str = None
+    id: int = None
 
     _session: session.Session = field(repr=False, default=None)
 
@@ -83,9 +84,12 @@ class Entry:
     id: int = None
     subject: str = None
     author: user.User = None
-    date: datetime = None
-    audience: str = None
+    date_created: datetime = None
+    date_modified: datetime = None
+    publishstate: str = None
     content: PageElement | Any = field(repr=False, default=None)
+
+    attachments: list[file.File] = None
     images: PageElement | Any = field(repr=False, default=None)
     tags: list[tag.Tag] = None
 
@@ -99,6 +103,30 @@ class Entry:
     @property
     def url(self):
         return f"https://vle.kegs.org.uk/blog/index.php?entryid={self.id}"
+
+    @classmethod
+    def from_json(cls, data: dict[str | Any], _sess: session.Session) -> Self:
+        if data["module"] == "blog_external":
+            ext_be = External(url=data["uniquehash"], _session=_sess)
+            ext = External(id=data["moduleid"], _session=_sess)
+        else:
+            ext_be = None
+            ext = None
+
+        return cls(
+            _session=_sess,
+            id=data["id"],
+            subject=data["subject"],
+            author=user.User(id=data["userid"], _session=_sess),
+            date_created=datetime.fromtimestamp(data["created"]),
+            date_modified=datetime.fromtimestamp(data["lastmodified"]),
+            publishstate=data["publishstate"],
+            content=BeautifulSoup(data["summary"], "html.parser"),
+            attachments=[file.File.from_json2(attch, _sess) for attch in data["attachmentfiles"]],
+            tags=[tag.Tag.from_json(td, _sess) for td in data["tags"]],
+            external_blog=ext,
+            external_blog_entry=ext_be,
+        )
 
     def update_from_id(self):
         text = self._session.rq.get("https://vle.kegs.org.uk/blog/index.php",
@@ -136,7 +164,7 @@ class Entry:
         self.author = self._session.connect_partial_user(id=author_id, name=author_anchor.text)
 
         date_str = author_anchor.next.next.text
-        self.date = dateparser.parse(date_str)
+        self.date_created = dateparser.parse(date_str)
 
         external_div = header.find("div", {"class": "externalblog"})
         if external_div:
@@ -149,9 +177,12 @@ class Entry:
                 )
 
         # Get actual blog content
-        self.audience = main.find("div", {"class": "audience"}).text
+        audience = main.find("div", {"class": "audience"}).text.strip()
+        self.publishstate = {"Anyone on this site": "site"}.get(audience)
 
         # Parse this maybe
+        # todo: convert this to use attachments
+        # todo: also parse attachments div
         self.images = main.find("div", {"class": "attachedimages"})
 
         self.content = main.find("div", {"class": "no-overflow"}) \
