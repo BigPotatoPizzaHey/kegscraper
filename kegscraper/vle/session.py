@@ -70,25 +70,18 @@ class Session:
         return self._sesskey
 
     def connect_notifications(self, *, limit: int = 20, offset: int = 0,
-                              user_id: int = None) -> list:  # tuple[list, int]:
+                              user_id: int = None, newestfirst: bool = True) -> tuple[int, list[dict[str, Any]]]:
+        """
+        Because KEGSNet messaging is disabled, this is mostly useless
+        I can still work out what would be the response format from the moodle docs, but no point
+        """
         if user_id is None:
             user_id = self.user_id
 
-        data = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                            params={
-                                "sesskey": self.sesskey,
-                                "info": "message_popup_get_popup_notifications"
-                            },
-                            json=[{"index": 0,  # idk what this is for
-                                   "methodname": "message_popup_get_popup_notifications",
-                                   "args": {
-                                       "limit": limit,
-                                       "offset": offset,
-                                       "useridto": str(user_id)}
-                                   }]
-                            ).json()  # ["data"]
+        data = self.webservice("message_popup_get_popup_notifications",
+                               limit=limit, offset=offset, useridto=user_id, newestfirst=int(newestfirst))
 
-        return data  # data["notifications"], data["unreadcount"]
+        return data["unreadcount"], data["notifications"]
 
     @property
     def file_client_id(self):
@@ -433,8 +426,8 @@ class Session:
         :return:
         """
         data: dict[str | Any] = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                            params={"sesskey": self.sesskey}, # "info": name
-                            json=[{"methodname": name, "args": args}]).json()[0]
+                                             params={"sesskey": self.sesskey},  # "info": name
+                                             json=[{"methodname": name, "args": args}]).json()[0]
 
         if data["error"]:
             raise exceptions.WebServiceError(
