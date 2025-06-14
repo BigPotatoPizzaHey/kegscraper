@@ -3,11 +3,13 @@ Session class and login/login by moodle function
 """
 from __future__ import annotations
 
+import json
 import re
 import atexit
 import warnings
 from typing import Literal
 from datetime import datetime
+from dataclasses import dataclass
 
 import dateparser
 import requests
@@ -17,27 +19,32 @@ from urllib.parse import urlparse, parse_qs
 from . import file, user, forum, blog, tag, calendar, course
 from ..util import commons
 
-
+@dataclass
 class Session:
     """
     Represents a login session
     """
 
-    def __init__(self, _sess: requests.Session):
-        self.rq: requests.Session = _sess
-        """Request handler (requests session object)"""
+    _sesskey: str | None = None
+    _file_client_id: str | None = None
+    _file_item_id: str | None = None
+    _user_id: int | None = None
+    _user: user.User | None = None
+    _username: str | None = None
 
-        self._sesskey: str | None = None
-        self._file_client_id: str | None = None
-        self._file_item_id: str | None = None
-        self._user_id: int | None = None
-        self._user: user.User | None = None
+    rq: requests.Session = None
+
+    def __post_init__(self):
+        """Request handler (requests session object)"""
 
         self.assert_login()
 
         atexit.register(self.logout)
 
     # --- Session/auth related methods ---
+    def unregister_logout(self):
+        atexit.unregister(self.logout)
+
     @property
     def sesskey(self):
         """Get the sesskey query parameter used in various functions. Webscraped from JS..."""
@@ -115,16 +122,19 @@ class Session:
     @property
     def username(self):
         """Fetch the connected user's username"""
-        response = self.rq.get("https://vle.kegs.org.uk/login/index.php")
-        soup = BeautifulSoup(response.text, "html.parser")
-        for alert_elem in soup.find_all(attrs={"role": "alert"}):
-            alert = alert_elem.text
+        if self._username is None:
+            response = self.rq.get("https://vle.kegs.org.uk/login/index.php")
+            soup = BeautifulSoup(response.text, "html.parser")
+            for alert_elem in soup.find_all(attrs={"role": "alert"}):
+                alert = alert_elem.text
 
-            username = commons.webscrape_value(alert, "You are already logged in as ",
-                                               ", you need to log out before logging in as different user.")
-            if username:
-                return username
-        return None
+                username = commons.webscrape_value(alert, "You are already logged in as ",
+                                                   ", you need to log out before logging in as different user.")
+                if username:
+                    self._username = username
+                    break
+
+        return self._username
 
     @property
     def user_id(self):
@@ -400,6 +410,51 @@ class Session:
 
         return ret
 
+    # -- Courses -- #
+    def connect_recent_courses(self, limit: int = 10, offset: int = 0):
+        data = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+                            params={
+                                "sesskey": self.sesskey,
+                                "info": "core_course_get_recent_courses"
+                            },
+                            json=[
+                                {"index": 0, "methodname": "core_course_get_recent_courses",
+                                 "args": {"limit": limit, "offset": offset}}
+                            ]).json()[0]["data"]
+
+        return [course.Course.from_json(course_data) for course_data in data]
+
+    def webservice(self, name, /, **args):
+        """
+        Directly interact with the webservice api once
+        :param name:
+        :param args:
+        :return:
+        """
+        return self.webservices([wreq(name, **args)])
+
+    def webservices(self, wreqs: list[dict[str, Any]]):
+        """
+        Directly interact with the webservice api
+        :param wreqs:
+        :return:
+        """
+
+        return self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+                            params={"sesskey": self.sesskey},
+                            json=wreqs).json()
+
+    def search_courses(self, query: str):
+        # todo: parse
+        # todo: use page & pagelenth stuff
+        data = self.webservice("core_course_search_courses", criterianame="tagid", criteriavalue=query)
+        return data
+
+    def connect_course_by_id(self, _id: int):
+        # data = self.webservice("core_course_get_enrolled_courses_by_timeline_classification", classification="inprogress")
+        data = self.webservice("enrol_self_enrol_user", courseid=_id)
+        return data
+
 
 # --- * ---
 
@@ -426,7 +481,7 @@ def login(username: str, password: str) -> Session:
                        "password": password
                        })
 
-    return Session(session)
+    return Session(rq=session)
 
 
 def login_by_moodle(moodle_cookie: str) -> Session:
@@ -438,4 +493,16 @@ def login_by_moodle(moodle_cookie: str) -> Session:
     session = requests.Session()
     session.cookies.set("MoodleSession", moodle_cookie)
 
-    return Session(session)
+    try:
+        return Session(rq=session)
+    except requests.exceptions.TooManyRedirects:
+        raise ValueError(f"The moodle cookie {moodle_cookie!r} may be invalid/outdated.")
+
+def wreq(name, /, **args):
+    """
+    Construct a moodle webservice request
+    :param name: name of webservice, e.g. 'tool_lp_search_users'
+    :param args: arguments for the webservice (can be blank)
+    :return: dictionary as part of a list for a request to the moodle webservice api
+    """
+    return {"methodname": name, "args": args}
