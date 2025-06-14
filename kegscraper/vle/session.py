@@ -17,7 +17,8 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 
 from . import file, user, forum, blog, tag, calendar, course
-from ..util import commons
+from ..util import commons, exceptions
+
 
 @dataclass
 class Session:
@@ -426,33 +427,31 @@ class Session:
 
     def webservice(self, name, /, **args):
         """
-        Directly interact with the webservice api once
-        :param name:
-        :param args:
-        :return:
-        """
-        return self.webservices([wreq(name, **args)])
-
-    def webservices(self, wreqs: list[dict[str, Any]]):
-        """
         Directly interact with the webservice api
-        :param wreqs:
+        :param name:methodname of webservice api, e.g. core_course_search_courses
+        :param args:args to send to webservice api
         :return:
         """
-
-        return self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+        data = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
                             params={"sesskey": self.sesskey},
-                            json=wreqs).json()
+                            json=[{"methodname": name, "args": args}]).json()[0]
+
+        if data["error"]:
+            raise exceptions.WebServiceError(
+                f"{data["exception"]["invalidparameter"]!r}: {data["exception"]["message"]!r}")
+
+        return data["data"]
 
     def search_courses(self, query: str):
         # todo: parse
-        # todo: use page & pagelenth stuff
+        # todo: use page & page length stuff
         data = self.webservice("core_course_search_courses", criterianame="tagid", criteriavalue=query)
         return data
 
-    def connect_course_by_id(self, _id: int):
-        # data = self.webservice("core_course_get_enrolled_courses_by_timeline_classification", classification="inprogress")
-        data = self.webservice("enrol_self_enrol_user", courseid=_id)
+    def connect_enrolled_courses(self, classification: Literal["future", "inprogress", "past"] = "inprogress",
+                                 limit: int = 9999, offset: int = 0):
+        data = self.webservice("core_course_get_enrolled_courses_by_timeline_classification",
+                               classification=classification, limit=limit, offset=offset)
         return data
 
 
@@ -497,12 +496,3 @@ def login_by_moodle(moodle_cookie: str) -> Session:
         return Session(rq=session)
     except requests.exceptions.TooManyRedirects:
         raise ValueError(f"The moodle cookie {moodle_cookie!r} may be invalid/outdated.")
-
-def wreq(name, /, **args):
-    """
-    Construct a moodle webservice request
-    :param name: name of webservice, e.g. 'tool_lp_search_users'
-    :param args: arguments for the webservice (can be blank)
-    :return: dictionary as part of a list for a request to the moodle webservice api
-    """
-    return {"methodname": name, "args": args}

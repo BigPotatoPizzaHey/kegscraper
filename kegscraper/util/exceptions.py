@@ -23,3 +23,6 @@ class TimeOut(Exception):
 
 class UnimplementedWarning(Warning):
     pass
+
+class WebServiceError(Exception):
+    pass
