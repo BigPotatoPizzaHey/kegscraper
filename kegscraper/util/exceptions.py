@@ -9,8 +9,17 @@ class UnclosedJSONError(Exception):
 class NotFound(Exception):
     pass
 
+class ParseFailure(Warning):
+    pass
+
 class Unauthorised(Exception):
     pass
 
 class ServerError(Exception):
+    pass
+
+class TimeOut(Exception):
+    pass
+
+class UnimplementedWarning(Warning):
     pass

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import atexit
+import math
 import random
 import string
 import enum
+import time
+import warnings
+from typing import Any
 from dataclasses import dataclass, field
 from urllib.parse import quote_plus, ParseResult, urlunparse, urlencode
 
-import requests
-import requests.cookies
+from . import series
+from ..util import commons, exceptions
+
 # noinspection PyProtectedMember
 from playwright.sync_api import sync_playwright, PlaywrightContextManager, Playwright, Browser, Page, Request
 
@@ -16,9 +21,11 @@ from playwright.sync_api import sync_playwright, PlaywrightContextManager, Playw
 class EventType(enum.Enum):
     library_update = "library_update"
 
+
 @dataclass
 class DebugSettings:
     print_on_req: bool = False
+
 
 @dataclass
 class Session:
@@ -27,7 +34,8 @@ class Session:
     browser: Browser = field(repr=False)
     page: Page = field(repr=False)
 
-    events: dict[str, bool] = field(default_factory=dict) # special dict that logs if certain events occur - e.g. updating based on library data
+    events: dict[str, Any] = field(
+        default_factory=dict)  # special dict that logs if certain events occur - e.g. updating based on library data
     debug: DebugSettings = field(repr=False, default_factory=DebugSettings)
 
     def __post_init__(self):
@@ -35,16 +43,26 @@ class Session:
 
         atexit.register(self.pw_ctx.__exit__)
 
-    def _register_event(self, event_type: EventType, value = True):
+    def _register_event(self, event_type: EventType, value: Any = True):
         self.events[event_type.value] = value
 
-    def _expect_event(self, event_type: EventType, *, pop: bool = True):
-        ...
+    def _expect_event(self, event_type: EventType, *, pop: bool = True, timeout: float | int = math.inf):
+        start = time.time()
+        while event_type.value not in self.events:
+            if time.time() > start + timeout:
+                raise exceptions.TimeOut(f"Ran out of time waiting for {event_type.value!r} after {timeout}s")
+
+        if pop:
+            return self.events.pop(event_type.value)
+        else:
+            return self.events[event_type.value]
 
     def clear_events(self):
         self.events.clear()
 
     def on_req(self, req: Request):
+        _ = req.url, str(req)  # it appears that calling this property & __str__ affects behaviour, which is very odd
+
         resp = req.response()
 
         if self.debug.print_on_req:
@@ -52,14 +70,31 @@ class Session:
 
         match req.url:
             case "https://www.pearsonactivelearn.com/app/Execute/GetUserSeriesList":
-                self._register_event(EventType.library_update, resp.json())
+                data: dict[str, Any] = resp.json()
 
+                # 4 items in each list?
+                data: list[dict] = data["Data"]
+                for obj in data:
+                    columns = obj["Columns"]
+                    if columns == ['SeriesName', 'SeriesId', 'Subject', 'SubjectId']:
+                        data: list[list[str | int]] = obj["Data"]
+                        break
+                else:
+                    warnings.warn(f"Failed to parse {data}", category=exceptions.ParseFailure)
+
+                self._register_event(EventType.library_update, [
+                    series.Series(name=series_data[0],
+                                  id=series_data[1],
+                                  subject_name=series_data[2],
+                                  subject_short_name=series_data[3],
+                                  _session=self) for series_data in data
+                ])
 
     @property
-    def library(self):
+    def library(self) -> list[series.Series]:
+        self.clear_events()
         self.page.goto("https://www.pearsonactivelearn.com/app/library")
-        self.page.expect_response("https://www.pearsonactivelearn.com/app/Execute/GetUserSeriesList")
-        input()
+        return self._expect_event(EventType.library_update)
 
 
 def login(username: str, password: str, headless: bool = True, **kwargs):
@@ -85,7 +120,6 @@ def login(username: str, password: str, headless: bool = True, **kwargs):
 
     browser = playwright.webkit.launch(headless=headless, **kwargs)
     page = browser.new_page()
-
 
     page.goto(str(url))
 
