@@ -81,35 +81,24 @@ class Tag:
         response = self._session.rq.get(self.url)
         self._update_from_response(response)
 
-    def _req_get_tagindex(self, page: int | str, ta: int | str):
-        json_data = [
-            {
-                "index": 0,
-                "methodname": "core_tag_get_tagindex",
-                "args": {
-                    "tagindex": {"tc": "1",
-                                 "tag": self.name,
-                                 "ta": str(ta),  # 1 = users, 3 = courses, 7 = blog posts. todo: courses?
-                                 "page": str(page)
-                                 }
-                }
-            }]
-
-        return self._session.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                                     params={
-                                         "sesskey": self._session.sesskey,
-                                         "info": "core_tag_get_tagindex"
-                                     },
-                                     json=json_data)
-
     def connect_interested_users(self, limit: int = 5, offset: int = 0):
         users = []
 
         for page in commons.generate_page_range(limit, offset, 5, 0)[0]:
-            data = self._req_get_tagindex(page, 1).json()[0]["data"]["content"]
-            soup = BeautifulSoup(data, "html.parser")
+            data = self._session.webservice("core_tag_get_tagindex", tagindex={
+                "tc": 1,
+                "tag": self.name,
+                "ta": 1,  # 1 = users, 3 = courses, 7 = blog posts. todo: courses?
+                "page": str(page)
+            })
 
-            for li in soup.find_all("li", {"class": "media"}):
+            soup = BeautifulSoup(data["content"], "html.parser")
+
+            lis = soup.find_all("li", {"class": "media"})
+            if not lis:
+                break # if it is empty, don't need to make more webreqs
+
+            for li in lis:
                 a = li.find("a")
                 href = a.attrs["href"]
                 q_parse = parse_qs(urlparse(href).query)
@@ -122,7 +111,7 @@ class Tag:
                 body = li.find("div", {"class": "media-body"})
                 name = body.text.strip()
 
-                users.append(user.User(id=uid, name=name, image_url=src))
+                users.append(user.User(id=uid, name=name, image_url=src, _session=self._session))
 
         return users
 

@@ -7,7 +7,8 @@ import json
 import re
 import atexit
 import warnings
-from typing import Literal
+
+from typing import Literal, Any
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -25,7 +26,6 @@ class Session:
     """
     Represents a login session
     """
-
     _sesskey: str | None = None
     _file_client_id: str | None = None
     _file_item_id: str | None = None
@@ -432,8 +432,8 @@ class Session:
         :param args:args to send to webservice api
         :return:
         """
-        data = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                            params={"sesskey": self.sesskey},
+        data: dict[str | Any] = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+                            params={"sesskey": self.sesskey}, # "info": name
                             json=[{"methodname": name, "args": args}]).json()[0]
 
         if data["error"]:
