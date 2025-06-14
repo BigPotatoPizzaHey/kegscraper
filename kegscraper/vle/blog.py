@@ -180,9 +180,6 @@ class Entry:
         audience = main.find("div", {"class": "audience"}).text.strip()
         self.publishstate = {"Anyone on this site": "site"}.get(audience)
 
-        # Parse this maybe
-        # todo: convert this to use attachments
-        # todo: also parse attachments div
         self.images = main.find("div", {"class": "attachedimages"})
 
         self.content = main.find("div", {"class": "no-overflow"}) \

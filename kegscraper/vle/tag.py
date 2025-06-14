@@ -102,7 +102,7 @@ class Tag:
             data = self._session.webservice("core_tag_get_tagindex", tagindex={
                 "tc": 1,
                 "tag": self.name,
-                "ta": 1,  # 1 = users, 3 = courses, 7 = blog posts. todo: courses?
+                "ta": 1,  # 1 = users, 3 = courses, 7 = blog posts.
                 "page": str(page)
             })
 

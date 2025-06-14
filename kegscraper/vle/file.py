@@ -82,7 +82,6 @@ class File:
                    type=data.get("type"),
                    url=data.get("url"),
                    icon_url=data.get("icon"),
-                   # todo: Thumbnail url is the same as icon url but different size - use urllib.parse
                    datemodified=datetime.fromtimestamp(data.get("datemodified")),
                    datecreated=datetime.fromtimestamp(data.get("datecreated")),
                    user=_session.connected_user,

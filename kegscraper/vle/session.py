@@ -460,8 +460,6 @@ class Session:
         return data["data"]
 
     def search_courses(self, query: str):
-        # todo: parse
-        # todo: use page & page length stuff
         data = self.webservice("core_course_search_courses", criterianame="tagid", criteriavalue=query)
         return data
 

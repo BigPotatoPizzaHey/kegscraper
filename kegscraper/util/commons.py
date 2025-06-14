@@ -185,7 +185,6 @@ def generate_page_range(limit: int, offset: int, items_per_page: int, starting_p
         page_range,
         # start_idxs
         [items_per_page * (i - starting_page) for i in page_range]
-        # todo: review this ^^, maybe replace with the commented out start_idxs and add a 3rd output arg of end_idxs
     )
 
 

@@ -62,9 +62,3 @@ class Course:
         return [digitalbook.DigitalBook.from_kwargs(_sess=self._sess, course=self, **attrs) for attrs in data]
 
     # --- * --- #
-    # todo: <below>
-    # https://www.kerboodle.com/api/courses/9462/digital_books
-    # https://www.kerboodle.com/api/v2/courses/9462/student_reports/statistics
-    # https://www.kerboodle.com/api/courses/9462/markbooks/stats
-    # https://www.kerboodle.com/api/courses/9462/contents/search?&per_page=40&page=1&sort=&order=&query=&module=Resources&tags=&user=&parent=&new_contents=&updated_contents=&type=&source=&used_as=&filter=&content_ids=&resources_panel=&_=1748245917213
-    # https://www.kerboodle.com/api/courses/9462/contents/search?&per_page=40&page=1&sort=&order=&query=&module=DigitalBooks&tags=&user=&parent=&new_contents=&updated_contents=&type=&source=&used_as=&filter=&content_ids=&resources_panel=&_=1748245917213

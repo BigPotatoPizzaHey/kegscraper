@@ -28,7 +28,6 @@ class Event:
 class Calendar:
     """
     An instance of a calendar widget that KEGSNet can give
-    todo: allow adding of calendars together using __add__
     """
     events: list[Event] = field(default_factory=list)
 
