@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import mimetypes
+
 import dateparser
 import requests
 from bs4 import BeautifulSoup
@@ -32,7 +34,6 @@ class Session:
 
     def update_by_env(self):
         """
-        *not tested!*
         Reassign session attributes (esp. self.organisation) by making a request to the environment dashboard
         """
         response = self.rq.get(f"http://printing.kegs.local:9191/environment/dashboard/{self.username}")
@@ -133,6 +134,12 @@ class Session:
                     val = val.replace("Since", '').strip()
                     self.since = dateparser.parse(val)
 
+    def get_balance_graph(self, width: int=668, height: int=400) -> tuple[str, bytes]:
+        resp = self.rq.get(f"http://printing.kegs.local:9191/app?service=chart/UserSummary/{width}/{height}/$Chart")
+        # &sp=SBalance+history+for+{self.username}&69402papercut-mf")
+        # it appears that the last part of the url is unnecessary
+
+        return mimetypes.guess_extension(resp.headers["Content-Type"]), resp.content
 
 def login(username: str, password: str) -> Session:
     """

@@ -40,7 +40,7 @@ class Post:
             ).get("id")[0]
         )
 
-        self.creator = self._session.connect_user(uid)
+        self.creator = self._session.connect_user_by_id(uid)
         # We can actually provide the name of the creator, even if other data is inaccessible
         self.creator.name = user_anchor.text
 

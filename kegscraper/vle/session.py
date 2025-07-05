@@ -10,7 +10,7 @@ import warnings
 
 from typing import Literal, Any
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import dateparser
 import requests
@@ -45,6 +45,14 @@ class Session:
     # --- Session/auth related methods ---
     def unregister_logout(self):
         atexit.unregister(self.logout)
+
+    @property
+    def moodlesession(self):
+        return self.rq.cookies.get("MoodleSession")
+
+    @property
+    def is_signed_in(self):
+        return self.rq.get("https://vle.kegs.org.uk").url != "https://vle.kegs.org.uk/login/index.php"
 
     @property
     def sesskey(self):
@@ -99,7 +107,7 @@ class Session:
     def connected_user(self) -> user.User:
         """Fetch the connected user to this session"""
         if not self._user:
-            self._user = self.connect_user(self.user_id)
+            self._user = self.connect_user_by_id(self.user_id)
 
         return self._user
 
@@ -147,7 +155,7 @@ class Session:
 
     def assert_login(self):
         """Raise an error if there is no connected user"""
-        assert self.username
+        assert self.is_signed_in
 
     def logout(self):
         """
@@ -160,11 +168,33 @@ class Session:
         return response
 
     # --- Connecting ---
-    def connect_user(self, _id: int) -> user.User:
+    def connect_user_by_id(self, _id: int) -> user.User:
         """Get a user by ID and attach this session object to it"""
         ret = user.User(_id, _session=self)
         ret.update_from_id()
         return ret
+
+    def get_users(self, _id: int | list[int] | None = None, idnumber: int | list[int] | None = None, username: str | list[str] | None = None, email: str | list[str] | None = None):
+        if _id:
+            _field = "id"
+            _value = _id
+        elif idnumber:
+            _field = "idnumber"
+            _value = idnumber
+        elif username:
+            _field = "username"
+            _value = username
+        elif email:
+            _field = "email"
+            _value = email
+        else:
+            raise ValueError("Nothing to search by")
+
+        if not isinstance(_value, list):
+            _value = [_value]
+
+        data = self.webservice("core_user_get_users_by_field", field=_field, values=_value)
+        return data
 
     def connect_partial_user(self, **kwargs):
         """
@@ -337,6 +367,7 @@ class Session:
                           category=exceptions.UnimplementedWarning)
 
         filters = []
+
         def add_filter(name: str, value):
             if value is not None:
                 filters.append({"name": name, "value": value})
@@ -449,13 +480,27 @@ class Session:
         :param args:args to send to webservice api
         :return:
         """
-        data: dict[str | Any] = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
-                                             params={"sesskey": self.sesskey},  # "info": name
-                                             json=[{"methodname": name, "args": args}]).json()[0]
+        data: list = self.rq.post("https://vle.kegs.org.uk/lib/ajax/service.php",
+                     params={"sesskey": self.sesskey},  # "info": name
+                     json=[{"methodname": name, "args": args}]).json()
+
+        skip = False
+        if isinstance(data, dict):
+            skip = "error" in data
+
+        if not skip:
+            data: dict[str, dict | str | int | float | None | bool | list] = data[0]
 
         if data["error"]:
-            raise exceptions.WebServiceError(
-                f"{data["exception"]["errorcode"]!r}: {data["exception"]["message"]!r}")
+            try:
+                raise exceptions.WebServiceError(
+                    f"{data['exception']['errorcode']!r}: {data['exception']['message']!r}")
+            except KeyError:
+                try:
+                    raise exceptions.WebServiceError(
+                        f"{data['errorcode']!r}: {data['error']!r}")
+                except KeyError:
+                    raise exceptions.WebServiceError(f"Error: {data}")
 
         return data["data"]
 
