@@ -23,13 +23,10 @@ class Session:
     page: Page
 
     def set_pfp(self, fp: str, *, return_screenshot: bool = True) -> Optional[bytes]:
-        if self.page.url.startswith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize"):
-            table = self.page.wait_for_selector("div[class=table tole=button]")
-            table.query_selector("div[class=table-row]").click()
-
         self.page.wait_for_url("https://outlook.office365.com/mail/")
         # depending on your theme, fetching the pfp seems to be inconsistent
 
+        page.wait_for_load_state("networkidle", timeout=120_000)
         self.page.goto("https://myaccount.microsoft.com/")
 
         img_btn = self.page.locator("div[role='presentation'][class='ms-Persona-imageArea imageArea-307']")
@@ -98,6 +95,10 @@ def login(username: str, password: str, *, headless: bool=True, **kwargs):
         warnings.warn(str(e))
 
     page.wait_for_load_state("networkidle", timeout=120_000)
+
+    if self.page.url.startswith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize"):
+        table = self.page.wait_for_selector("div[class=table tole=button]")
+        table.query_selector("div[class=table-row]").click()
 
     return Session(
         pw_ctx=pw_ctx, playwright=playwright, browser=browser, page=page
