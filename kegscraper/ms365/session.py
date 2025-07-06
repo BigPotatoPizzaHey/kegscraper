@@ -23,7 +23,6 @@ class Session:
     page: Page
 
     def set_pfp(self, fp: str, *, return_screenshot: bool = True) -> Optional[bytes]:
-        self.page.wait_for_url("https://outlook.office365.com/mail/")
         # depending on your theme, fetching the pfp seems to be inconsistent
 
         self.page.wait_for_load_state("networkidle", timeout=120_000)
@@ -72,7 +71,7 @@ def login(username: str, password: str, *, headless: bool=True, **kwargs):
     playwright = pw_ctx.__enter__()
     atexit.register(pw_ctx.__exit__)
 
-    browser = playwright.firefox.launch(headless=headless, **kwargs)
+    browser = playwright.chromium.launch(headless=headless, **kwargs)
     page = browser.new_page()
 
     page.goto("https://www.outlook.com/kegs.org.uk")
@@ -99,6 +98,8 @@ def login(username: str, password: str, *, headless: bool=True, **kwargs):
     if page.url.startswith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize"):
         table = page.wait_for_selector("div[class=table tole=button]")
         table.query_selector("div[class=table-row]").click()
+
+    page.wait_for_url("https://outlook.office365.com/mail/")
 
     return Session(
         pw_ctx=pw_ctx, playwright=playwright, browser=browser, page=page
