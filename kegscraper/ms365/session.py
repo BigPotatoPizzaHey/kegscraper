@@ -28,7 +28,7 @@ class Session:
         self.page.wait_for_load_state("networkidle", timeout=120_000)
         self.page.goto("https://myaccount.microsoft.com/")
 
-        img_btn = self.page.locator("div[role='presentation'][class='ms-Persona-imageArea imageArea-307']")
+        img_btn = self.page.locator("div[role='presentation'].ms-Persona-imageArea")
         img_btn.wait_for()
 
         # maybe change this to a locator: https://playwright.dev/python/docs/other-locators
@@ -63,9 +63,9 @@ class Session:
             return self.page.screenshot()
 
 
-def login(username: str, password: str, *, headless: bool=True, **kwargs):
-    if username.endswith("@kegs.org.uk"):
-        username = username[:-len("@kegs.org.uk")]
+def login(email: str, password: str, *, headless: bool=True, **kwargs):
+    if not email.endswith("@kegs.org.uk"):
+        email += "@kegs.org.uk"
 
     pw_ctx = sync_playwright()
     playwright = pw_ctx.__enter__()
@@ -76,22 +76,28 @@ def login(username: str, password: str, *, headless: bool=True, **kwargs):
 
     page.goto("https://www.outlook.com/kegs.org.uk")
 
-    username_input = page.wait_for_selector("input[id=userNameInput]")
-    password_input = page.wait_for_selector("input[id=passwordInput]")
-    sign_in_button = page.wait_for_selector("span[id=submitButton]")
+    email_input = page.wait_for_selector("input[type=email]")
+    submit_input = page.wait_for_selector("input[type=submit]")
 
-    username_input.type(username)
+    email_input.type(email) # passwd
+    submit_input.click()
+
+    time.sleep(5)
+
+    password_input = page.wait_for_selector("input[type=password]")
+    submit_input = page.wait_for_selector("input[type=submit]")
+
     password_input.type(password)
-    sign_in_button.click()
+    submit_input.click()
 
-    page.wait_for_url("https://login.microsoftonline.com/login.srf")
+    page.wait_for_url("https://login.microsoftonline.com/common/login")
     page.wait_for_selector("input[type=submit]").click()
 
-    page.wait_for_url("https://login.microsoftonline.com/appverify")
-    try:
-        page.wait_for_selector("input[type=submit]").click()
-    except Exception as e:
-        warnings.warn(str(e))
+    # page.wait_for_url("https://login.microsoftonline.com/appverify")
+    # try:
+    #     page.wait_for_selector("input[type=submit]").click()
+    # except Exception as e:
+    #     warnings.warn(str(e))
 
     page.wait_for_load_state("networkidle", timeout=120_000)
 
