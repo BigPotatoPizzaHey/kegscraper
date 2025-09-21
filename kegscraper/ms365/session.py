@@ -46,7 +46,10 @@ class Session:
             cancel_btn.click()
 
         img = img_btn.locator("img[src][alt='Profile photo']")
-        img.wait_for()
+        try:
+            img.wait_for()
+        except pw_errors.TimeoutError as e:
+            warnings.warn(f"Ignored: {e}")
 
         img_btn.click()
         change_photo_btn = self.page.wait_for_selector("span[role=presentation].CloudUpload")
